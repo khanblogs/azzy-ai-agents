@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 from azzy.tools.base import NotConfigured, ToolContext, ToolError, ToolSpec, int_prop, schema, str_prop
 
-_FORBIDDEN = re.compile(r"(?i)\b(insert|update|delete|drop|alter|truncate|create|grant|revoke|copy|vacuum|call|do|merge|lock|comment|set|reset|listen|notify)\b")
+_FORBIDDEN = re.compile(r"(?i)\b(into|insert|update|delete|drop|alter|truncate|create|grant|revoke|copy|vacuum|call|do|merge|lock|comment|set|reset|listen|notify)\b")
 _LEADING = re.compile(r"(?is)^\s*(with\b.*?\bselect|select|explain\s+(analyze\s+)?select)\b")
 MAX_ROWS = 500
 

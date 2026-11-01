@@ -14,7 +14,7 @@ from azzy.paths import agents_dir, artifacts_dir
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=None, extra="ignore", case_sensitive=False)
 
-    DEMO: bool = True
+    DEMO: bool = False
     DATABASE_URL: str = "postgresql+asyncpg://azzy:azzy@postgres:5432/azzy"
     DATABASE_RO_URL: str | None = None
     REDIS_URL: str = "redis://redis:6379/0"
