@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
 import * as THREE from "three";
@@ -29,6 +29,13 @@ export function OrchestrationTable({ active }: { active: boolean }) {
   });
 
   const glow = active ? "#00E5FF" : "#9747FF";
+  // Brand logo as the hologram (two crossed planes so it never disappears edge-on while spinning).
+  const logo = useMemo(() => {
+    const tex = new THREE.TextureLoader().load("/brand/azzy-logo-256.png");
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 4;
+    return tex;
+  }, []);
 
   return (
     <group position={[cx, 0, cz]}>
@@ -60,9 +67,16 @@ export function OrchestrationTable({ active }: { active: boolean }) {
       </mesh>
       {/* holographic "A" + orbiting rings */}
       <group ref={holo} position={[0, 1.75, 0]}>
-        <Text fontSize={0.9} color="#00E5FF" anchorX="center" anchorY="middle" outlineWidth={0.03} outlineColor="#9747FF" outlineBlur={0.2} fillOpacity={0.9}>
-          A
-        </Text>
+        {[0, Math.PI / 2].map((ry) => (
+          <mesh key={ry} rotation={[0, ry, 0]}>
+            <planeGeometry args={[1.35, 1.35]} />
+            <meshBasicMaterial map={logo} transparent opacity={0.92} side={THREE.DoubleSide} depthWrite={false} toneMapped={false} />
+          </mesh>
+        ))}
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.72, 0]}>
+          <ringGeometry args={[0.55, 0.72, 48]} />
+          <meshBasicMaterial color={glow} transparent opacity={0.35} side={THREE.DoubleSide} toneMapped={false} />
+        </mesh>
         <mesh ref={ringA} rotation={[Math.PI / 2.4, 0, 0]}>
           <torusGeometry args={[0.72, 0.012, 8, 64]} />
           <meshBasicMaterial color="#00E5FF" toneMapped={false} transparent opacity={0.8} />
