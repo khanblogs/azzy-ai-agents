@@ -1,0 +1,132 @@
+# Policy engine configuration. Loaded by apps/api/azzy/policy.py.
+# Risk is resolved in this order; the first matching rule wins:
+#   1. tool_overrides (exact tool name)
+#   2. env rules (env is prod / env.auto_allow contains the tool)
+#   3. tool_defaults (exact tool name)
+#   4. default
+#
+# Outcome per risk level:
+#   low    -> run immediately
+#   medium -> approval required unless the environment auto-allows that tool
+#   high   -> approval required, never auto-allowed
+default: medium
+approval_timeout_seconds: 3600
+
+tool_defaults:
+  env.registry: low
+  aws.describe: low
+  aws.cost: low
+  cloudwatch.logs: low
+  github.read: low
+  sql.read: low
+  sandbox.run: low
+  pptx.build: low
+  xlsx.model: low
+  pdf.export: low
+  gmail.draft: low
+  slack.post: low
+  memory.write: low
+  semgrep.scan: low
+  gitleaks.scan: low
+  trivy.scan: low
+  checkov.scan: low
+  playwright.run: low
+  aws.deploy: medium
+  aws.rollback: medium
+  ssh.safe_action: medium
+  github.branch_pr: medium
+  gcal.schedule: medium
+  nuclei.scan: medium
+  zap.scan: medium
+  aws.accounts: low
+  aws.inventory: low
+  iam.review: low
+  knowledge.search: low
+  agent.message: low
+  zendesk.update: high
+  gmail.send: high
+
+# Any call whose arguments match one of these predicates is forced to high.
+high_if:
+  - tool: ssh.safe_action
+    arg: action
+    in: [deploy, rollback, restart]
+    when_env: prod
+  - tool: aws.deploy
+    when_env: prod
+  - tool: aws.rollback
+    when_env: prod
+  - tool: sql.read
+    arg_regex: "(?i)\\b(drop|delete|alter|truncate|grant|revoke)\\b"
+  - tool: aws.describe
+    arg: service
+    in: [iam]
+  - tool: github.branch_pr
+    arg: base
+    in: [main, master, prod, production]
+
+
+# Minimum AWS account scope a tool needs (readonly < audit < deploy). A call against an account
+# whose scope is lower is refused by the executor before policy classification.
+scope_requirements:
+  aws.describe: readonly
+  aws.inventory: readonly
+  aws.cost: readonly
+  cloudwatch.logs: readonly
+  iam.review: audit
+  aws.deploy: deploy
+  aws.rollback: deploy
+
+# Agent-to-agent delegation bounds (enforced by the orchestrator).
+collaboration:
+  max_delegation_depth: 3
+  max_messages_per_task: 60
+  max_retries_per_step: 2
+  step_timeout_seconds: 300
+  task_timeout_seconds: 5400
+
+# RBAC: which user roles may decide approvals raised by which agent (admin may decide all).
+approval_roles:
+  jimmy: [admin, devops]
+  emir: [admin, developer, devops]
+  cyber: [admin, security]
+  sara: [admin, operations]
+  marwah: [admin, marketing]
+
+# Commands ssh.safe_action may run on a target (anything else is rejected before policy).
+ssh_allowlist: [status, restart, logs, deploy, rollback, disk, top]
+
+# Tool names that are allowed to exist at all. Anything else is rejected by the executor.
+tool_allowlist:
+  - env.registry
+  - aws.describe
+  - aws.deploy
+  - aws.rollback
+  - aws.cost
+  - cloudwatch.logs
+  - ssh.safe_action
+  - github.read
+  - github.branch_pr
+  - sandbox.run
+  - sql.read
+  - pptx.build
+  - xlsx.model
+  - pdf.export
+  - gmail.draft
+  - gmail.send
+  - slack.post
+  - gcal.schedule
+  - zendesk.update
+  - semgrep.scan
+  - gitleaks.scan
+  - trivy.scan
+  - checkov.scan
+  - nuclei.scan
+  - zap.scan
+  - iam.review
+  - aws.accounts
+  - aws.inventory
+  - knowledge.search
+  - agent.message
+  - playwright.run
+  - memory.write

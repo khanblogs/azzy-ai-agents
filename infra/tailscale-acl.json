@@ -1,0 +1,59 @@
+{
+  "//": "AZZY AI AGENTS v2.0 tailnet policy. Paste into the Tailscale admin console (Access controls). tag:azzy = the HQ box, tag:servers = client VPSes operated through ssh.safe_action.",
+
+  "tagOwners": {
+    "tag:azzy": ["autogroup:admin"],
+    "tag:servers": ["autogroup:admin"]
+  },
+
+  "acls": [
+    {
+      "action": "accept",
+      "src": ["tag:azzy"],
+      "dst": ["tag:servers:22"]
+    },
+    {
+      "action": "accept",
+      "src": ["autogroup:admin"],
+      "dst": ["tag:azzy:22", "tag:servers:22"]
+    }
+  ],
+
+  "ssh": [
+    {
+      "action": "accept",
+      "src": ["tag:azzy"],
+      "dst": ["tag:servers"],
+      "users": ["azzy-deploy"]
+    },
+    {
+      "action": "check",
+      "src": ["autogroup:admin"],
+      "dst": ["tag:azzy", "tag:servers"],
+      "users": ["autogroup:nonroot", "root"]
+    }
+  ],
+
+  "nodeAttrs": [],
+
+  "tests": [
+    {
+      "src": "tag:azzy",
+      "accept": ["tag:servers:22"],
+      "deny": ["tag:servers:80", "tag:servers:443"]
+    },
+    {
+      "src": "tag:servers",
+      "deny": ["tag:azzy:22", "tag:azzy:80"]
+    }
+  ],
+
+  "sshTests": [
+    {
+      "src": "tag:azzy",
+      "dst": ["tag:servers"],
+      "accept": ["azzy-deploy"],
+      "deny": ["root", "ubuntu"]
+    }
+  ]
+}

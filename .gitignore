@@ -1,0 +1,56 @@
+# deps / builds
+node_modules/
+.next/
+out/
+dist/
+*.tsbuildinfo
+.turbo/
+
+# python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# secrets & local state (never commit)
+infra/.env
+infra/.env.*
+!infra/.env.example
+infra/nginx/certs/*
+!infra/nginx/certs/.gitkeep
+infra/nginx/www/*
+!infra/nginx/www/.gitkeep
+infra/nginx/conf.d/azzy-tls.conf
+infra/terraform/.terraform/
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.*
+infra/terraform/terraform.tfvars
+infra/terraform/.terraform.lock.hcl
+*.pem
+*.key
+
+# tests
+e2e/.auth/
+e2e/playwright-report/
+e2e/test-results/
+e2e/screenshots/*
+!e2e/screenshots/.gitkeep
+playwright-report/
+test-results/
+coverage/
+compose.log
+
+# editors / os
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*.log
+captures/

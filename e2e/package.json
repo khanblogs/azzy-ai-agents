@@ -1,0 +1,20 @@
+{
+  "name": "@azzy/e2e",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Playwright end-to-end tests for AZZY AI AGENTS v2.0 (run against the compose stack).",
+  "scripts": {
+    "test": "playwright test",
+    "test:desktop": "playwright test --project=desktop-chromium",
+    "test:mobile": "playwright test --project=mobile",
+    "test:ui": "playwright test --ui",
+    "screenshots": "playwright test --grep screenshots",
+    "report": "playwright show-report",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.1",
+    "@types/node": "^22.10.2",
+    "typescript": "^5.6.3"
+  }
+}

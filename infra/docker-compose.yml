@@ -1,0 +1,229 @@
+# AZZY AI AGENTS v2.0 — single-host stack (nginx, web, api, worker, postgres, redis).
+#
+#   cp infra/.env.example infra/.env
+#   docker compose -f infra/docker-compose.yml up -d --build
+#
+# Compose reads ./.env (next to this file) for ${...} interpolation and the
+# api/worker/web services load the same file through env_file.
+# Exactly six containers, sized for one 4 vCPU / 16 GiB box (m7i.xlarge; 2 vCPU / 8 GiB
+# is enough for DEMO). Hard
+# mem_limits total ~6 GiB; measured idle footprint target is 2.5-3 GB RSS. cpus
+# caps keep any one container from starving the others. No Prometheus/Grafana/
+# OTel containers: the api exposes /metrics on the internal network only.
+
+name: azzy
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+      - ./nginx/www:/var/www/certbot:ro
+    depends_on:
+      web:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    mem_limit: 128m
+    cpus: 0.5
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 128M
+    logging: *default-logging
+
+  web:
+    build:
+      context: ..
+      dockerfile: infra/docker/web.Dockerfile
+      args:
+        NEXT_PUBLIC_DEMO: ${NEXT_PUBLIC_DEMO:-1}
+    image: azzy-web
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      NODE_ENV: production
+      NODE_OPTIONS: --max-old-space-size=512
+      API_INTERNAL_URL: ${API_INTERNAL_URL:-http://api:8000}
+    expose:
+      - "3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/login"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    mem_limit: 768m
+    cpus: 1.0
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 768M
+    logging: *default-logging
+
+  api:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+      args:
+        WITH_SCANNERS: ${WITH_SCANNERS:-0}
+    image: azzy-api
+    restart: unless-stopped
+    command: ["uvicorn", "azzy.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "${UVICORN_WORKERS:-1}"]
+    env_file: .env
+    environment:
+      UVICORN_WORKERS: ${UVICORN_WORKERS:-1}
+      AGENTS_DIR: /app/packages/agents
+      ARTIFACTS_DIR: /data/artifacts
+      KNOWLEDGE_DIR: /data/knowledge
+    expose:
+      - "8000"
+    volumes:
+      - artifacts:/data/artifacts
+      - knowledge:/data/knowledge
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import sys,urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3).status == 200 else 1)"
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 25s
+    mem_limit: 1g
+    cpus: 1.5
+    deploy:
+      resources:
+        limits:
+          cpus: "1.50"
+          memory: 1G
+    logging: *default-logging
+
+  worker:
+    image: azzy-api
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+      args:
+        WITH_SCANNERS: ${WITH_SCANNERS:-0}
+    pull_policy: never
+    restart: unless-stopped
+    command: ["python", "-m", "azzy.worker"]
+    env_file: .env
+    environment:
+      AGENTS_DIR: /app/packages/agents
+      ARTIFACTS_DIR: /data/artifacts
+      KNOWLEDGE_DIR: /data/knowledge
+    volumes:
+      - artifacts:/data/artifacts
+      - knowledge:/data/knowledge
+    depends_on:
+      api:
+        condition: service_healthy
+    mem_limit: 1536m
+    cpus: 2.0
+    deploy:
+      resources:
+        limits:
+          cpus: "2.00"
+          memory: 1536M
+    logging: *default-logging
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: azzy
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-azzy}
+      POSTGRES_DB: azzy
+      PGDATA: /var/lib/postgresql/data/pgdata
+    # Tuned small for a shared 16 GB host.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=512MB
+      - -c
+      - work_mem=16MB
+      - -c
+      - max_connections=60
+      - -c
+      - effective_cache_size=1536MB
+      - -c
+      - maintenance_work_mem=128MB
+    shm_size: 256m
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    expose:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U azzy -d azzy"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    mem_limit: 2g
+    cpus: 1.5
+    deploy:
+      resources:
+        limits:
+          cpus: "1.50"
+          memory: 2G
+    logging: *default-logging
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "512mb", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redisdata:/data
+    expose:
+      - "6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    mem_limit: 640m
+    cpus: 0.5
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 640M
+    logging: *default-logging
+
+volumes:
+  pgdata:
+  redisdata:
+  artifacts:
+  knowledge:

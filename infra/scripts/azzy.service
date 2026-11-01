@@ -1,0 +1,22 @@
+# AZZY AI AGENTS v2.0 — bring the compose stack up on boot.
+#
+#   sudo cp infra/scripts/azzy.service /etc/systemd/system/azzy.service
+#   sudo systemctl daemon-reload && sudo systemctl enable --now azzy
+#
+# Edit WorkingDirectory if the repo lives somewhere other than /opt/azzy-ai-agents.
+[Unit]
+Description=AZZY AI AGENTS v2.0 (docker compose)
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/azzy-ai-agents
+ExecStart=/usr/bin/docker compose -f infra/docker-compose.yml up -d --remove-orphans
+ExecStop=/usr/bin/docker compose -f infra/docker-compose.yml down
+TimeoutStartSec=600
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,162 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+}
+
+html,
+body {
+  height: 100%;
+  background: #050816;
+  color: #e2e8f0;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+body {
+  background-image:
+    radial-gradient(900px 500px at 15% -10%, rgba(0, 229, 255, 0.08), transparent 60%),
+    radial-gradient(800px 500px at 90% 0%, rgba(151, 71, 255, 0.1), transparent 60%);
+  background-attachment: fixed;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #1a2140 transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: #1a2140;
+  border-radius: 8px;
+}
+
+.glass {
+  background: rgba(11, 16, 37, 0.72);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(26, 33, 64, 1);
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, #00e5ff 0%, #9747ff 55%, #f04dff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.collab-edge {
+  stroke-dasharray: 8 8;
+  animation: dash 1.2s linear infinite;
+}
+@keyframes dash {
+  to {
+    stroke-dashoffset: -32;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .collab-edge,
+  .animate-floaty,
+  .animate-pulseDot {
+    animation: none;
+  }
+}
+
+.hud {
+  touch-action: pan-y;
+}
+
+/* Keep content clear of the mobile tab bar (3.5rem) + iOS home indicator; desktop has no tab bar. */
+.main-pad {
+  padding-bottom: calc(var(--sab) + 5.5rem);
+}
+@media (min-width: 768px) {
+  .main-pad {
+    padding-bottom: 2rem;
+  }
+}
+
+.office-canvas {
+  touch-action: none;
+}
+
+.snap-x-cols {
+  scroll-snap-type: x mandatory;
+}
+.snap-x-cols > * {
+  scroll-snap-align: start;
+}
+
+.bubble-arrow::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -6px;
+  width: 12px;
+  height: 12px;
+  transform: translateX(-50%) rotate(45deg);
+  background: #0b1025;
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: #00e5ff;
+}
+
+select,
+input,
+textarea {
+  font: inherit;
+}
+
+/* Public hero: radial navy→midnight gradient, faint grid and two soft light blobs (CSS only). */
+.hero-bg {
+  background:
+    radial-gradient(1200px 600px at 50% -10%, rgba(11, 16, 37, 1), rgba(5, 8, 22, 1) 70%),
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size:
+    100% 100%,
+    48px 48px,
+    48px 48px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 1), rgba(0, 0, 0, 0.5) 70%, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 1), rgba(0, 0, 0, 0.5) 70%, transparent);
+}
+.hero-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(80px);
+  pointer-events: none;
+}
+
+.skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.skeleton-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+  animation: shimmer 1.4s infinite;
+}
+@keyframes shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.98);
+}

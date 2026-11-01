@@ -1,0 +1,23 @@
+# cp terraform.tfvars.example terraform.tfvars && edit.
+aws_region    = "ap-south-1"
+name          = "azzy-ai-agents"
+instance_type  = "m7i.xlarge" # 4 vCPU / 16 GB; r7i.large or m7i.large are cheaper (see variables.tf)
+root_volume_gb = 120
+
+# Repo the instance clones on first boot. For a private repo use a read-only deploy token:
+# "https://oauth2:<token>@github.com/you/azzy-ai-agents.git"
+repo_url    = "https://github.com/you/azzy-ai-agents.git"
+repo_branch = "main"
+
+# Leave empty to use the default VPC / its first default subnet.
+vpc_id    = ""
+subnet_id = ""
+
+# Optional break-glass SSH. Prefer leaving it empty and using Tailscale SSH.
+admin_cidr = ""
+
+backup_retention_days = 30
+
+tags = {
+  Owner = "you"
+}

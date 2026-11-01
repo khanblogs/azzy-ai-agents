@@ -1,0 +1,50 @@
+# Build context is the repo root for both images (web.Dockerfile and apps/api/Dockerfile).
+.git
+.github
+.gitignore
+.dockerignore
+docs
+README.md
+Makefile
+
+# deps / builds (reinstalled inside the image)
+**/node_modules
+**/.next
+**/out
+**/dist
+**/*.tsbuildinfo
+**/.turbo
+
+# python
+**/__pycache__
+**/*.pyc
+**/.venv
+**/venv
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+
+# secrets & local state
+infra/.env
+infra/.env.*
+!infra/.env.example
+infra/nginx/certs
+infra/nginx/www
+infra/terraform/.terraform
+infra/terraform/*.tfstate*
+infra/terraform/terraform.tfvars
+*.pem
+*.key
+
+# tests
+e2e/.auth
+e2e/playwright-report
+e2e/test-results
+e2e/screenshots
+**/coverage
+
+# editors / os
+.DS_Store
+.idea
+.vscode
+**/*.log

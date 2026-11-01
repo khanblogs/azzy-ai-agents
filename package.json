@@ -1,0 +1,21 @@
+{
+  "name": "azzy-ai-agents",
+  "private": true,
+  "version": "2.0.0",
+  "description": "AZZY AI AGENTS v2.0 \u2014 self-hosted AI agent office (web, shared events, e2e workspaces)",
+  "workspaces": [
+    "apps/web",
+    "packages/events",
+    "e2e"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "npm run dev -w apps/web",
+    "build": "npm run build -w apps/web",
+    "lint": "npm run lint -w apps/web",
+    "typecheck": "npm run typecheck -w apps/web && npm run typecheck -w packages/events",
+    "e2e": "npm run test -w e2e"
+  }
+}
