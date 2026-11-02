@@ -2,7 +2,8 @@
 
 import { Component, Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Canvas, useThree } from "@react-three/fiber";
-import { ContactShadows, Environment } from "@react-three/drei";
+import { ContactShadows, Environment, Lightformer, PerformanceMonitor } from "@react-three/drei";
+import { Bloom, EffectComposer, Vignette } from "@react-three/postprocessing";
 import type { AgentId } from "@azzy/events";
 import { deriveStatus, STATUS_COLORS, type VisualStatus } from "@/lib/status";
 import type { CollaborationEdge } from "@/lib/types";
@@ -66,19 +67,39 @@ function EnvironmentIntensity({ value }: { value: number }) {
   return null;
 }
 
+/** Self-hosted image-based lighting: a tiny virtual room of Lightformers in the
+ * brand colours. Replaces the old `preset="city"`, which downloaded an HDR from
+ * a public CDN at runtime (slow, and dead offline) — this needs no network and
+ * the reflections match the office palette. */
 function EnvironmentLighting() {
-  const [online, setOnline] = useState(false);
-  useEffect(() => {
-    setOnline(navigator.onLine !== false);
-  }, []);
-  if (!online) return null;
   return (
     <SilentBoundary>
       <Suspense fallback={null}>
-        <Environment preset="city" />
+        <Environment resolution={256} frames={1}>
+          <group>
+            <Lightformer form="rect" intensity={2.2} color="#dbeafe" position={[0, 5, 0]} rotation={[Math.PI / 2, 0, 0]} scale={[8, 8, 1]} />
+            <Lightformer form="rect" intensity={1.6} color="#00E5FF" position={[-5, 2, 0]} rotation={[0, Math.PI / 2, 0]} scale={[6, 2, 1]} />
+            <Lightformer form="rect" intensity={1.6} color="#9747FF" position={[5, 2, 0]} rotation={[0, -Math.PI / 2, 0]} scale={[6, 2, 1]} />
+            <Lightformer form="rect" intensity={0.7} color="#f5f3ff" position={[0, 2, 6]} rotation={[0, Math.PI, 0]} scale={[7, 3, 1]} />
+            <Lightformer form="rect" intensity={0.5} color="#1e293b" position={[0, 2, -6]} scale={[7, 3, 1]} />
+          </group>
+        </Environment>
         <EnvironmentIntensity value={0.3} />
       </Suspense>
     </SilentBoundary>
+  );
+}
+
+/** Post-processing for the high quality tier only: bloom makes the LED wall,
+ * coves and emissives actually glow; a light vignette focuses the frame. */
+function Effects() {
+  return (
+    <EffectComposer multisampling={0}>
+      <>
+        <Bloom mipmapBlur intensity={0.55} luminanceThreshold={0.55} luminanceSmoothing={0.25} />
+        <Vignette offset={0.22} darkness={0.62} />
+      </>
+    </EffectComposer>
   );
 }
 
@@ -158,20 +179,26 @@ export function OfficeScene({ liveEdges }: { liveEdges: CollaborationEdge[] }) {
   const hidden = usePageHidden();
   const office = useAzzy((s) => s.office.status);
   const mode = useAzzy((s) => s.cameraMode);
+  // Adaptive quality: PerformanceMonitor drops the scene to the low tier when
+  // the frame rate sags (and restores it when there is headroom), so the office
+  // stays smooth on integrated GPUs instead of lagging at full settings.
+  const [quality, setQuality] = useState<"high" | "low">("high");
+  const low = lowPower || quality === "low";
 
   return (
     <Canvas
       data-testid="office-canvas"
       className="office-canvas"
-      dpr={[1, 1.75]}
-      shadows={!lowPower}
+      dpr={low ? 1 : [1, 1.75]}
+      shadows={!low}
       frameloop={hidden ? "never" : "always"}
       camera={{ position: CAMERA_DEFAULT.position, fov: 50, near: 0.1, far: 140 }}
-      gl={{ antialias: !lowPower, powerPreference: "high-performance", alpha: false }}
+      gl={{ antialias: !low, powerPreference: "high-performance", alpha: false }}
       onCreated={({ gl }) => {
         gl.setClearColor("#050816");
       }}
     >
+      <PerformanceMonitor onDecline={() => setQuality("low")} onIncline={() => setQuality("high")} />
       <color attach="background" args={["#050816"]} />
       <fog attach="fog" args={["#050816", 26, 50]} />
 
@@ -197,7 +224,7 @@ export function OfficeScene({ liveEdges }: { liveEdges: CollaborationEdge[] }) {
 
       <EnvironmentLighting />
 
-      <Floor reflective={!lowPower} />
+      <Floor reflective={!low} />
       <LedFloorLines />
       <Walls />
       <Plants />
@@ -208,9 +235,10 @@ export function OfficeScene({ liveEdges }: { liveEdges: CollaborationEdge[] }) {
       <Agents />
       {mode === "collaboration" ? <CollabArcs liveEdges={liveEdges} /> : null}
 
-      {!lowPower ? <ContactShadows position={[0, 0.01, (ROOM.depthFront + ROOM.depthBack) / 2]} opacity={0.5} scale={44} blur={2.2} far={6} resolution={512} color="#000000" /> : null}
+      {!low ? <ContactShadows position={[0, 0.01, (ROOM.depthFront + ROOM.depthBack) / 2]} opacity={0.5} scale={44} blur={2.2} far={6} resolution={512} color="#000000" /> : null}
 
       <CameraRig />
+      {!low ? <Effects /> : null}
     </Canvas>
   );
 }

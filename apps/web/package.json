@@ -13,6 +13,7 @@
     "@azzy/events": "*",
     "@react-three/drei": "^10.0.4",
     "@react-three/fiber": "^9.0.4",
+    "@react-three/postprocessing": "^3.0.4",
     "clsx": "^2.1.1",
     "next": "15.1.6",
     "react": "19.0.0",

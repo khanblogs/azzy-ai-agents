@@ -10,7 +10,7 @@ import type { AzzyState } from "@/store/useAzzy";
  */
 export const WALL_W = 2560;
 export const WALL_H = 560;
-const TICKER_H = 60;
+export const TICKER_H = 60;
 const PAD = 48;
 
 export interface WallSnapshot {

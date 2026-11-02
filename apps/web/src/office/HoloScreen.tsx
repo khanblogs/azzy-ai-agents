@@ -54,7 +54,7 @@ export function HoloScreen({ id, dim }: { id: AgentId; dim: boolean }) {
     if (!ctx) return;
     acc.current += dt;
     offset.current += dt * 6;
-    if (acc.current < 0.1 && !dirty.current) return; // ≤ 10 fps
+    if (acc.current < 0.12 && !dirty.current) return; // ≤ ~8 fps
     acc.current = 0;
     dirty.current = false;
     ctx.clearRect(0, 0, W, H);
