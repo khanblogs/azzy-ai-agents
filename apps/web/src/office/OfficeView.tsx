@@ -108,7 +108,7 @@ function Hud() {
           </Button>
         </div>
       </div>
-      <div className="pointer-events-auto flex flex-wrap items-center gap-1 rounded-full glass w-fit p-1" role="tablist" aria-label="Camera modes">
+      <div className="pointer-events-auto flex w-fit max-w-full flex-nowrap items-center gap-1 overflow-x-auto rounded-full glass p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="Camera modes">
         {MODES.map((m) => {
           const active = mode === m.key;
           const disabled = m.key === "focus" && !selected;
@@ -122,7 +122,7 @@ function Hud() {
               title={disabled ? "Select an agent first" : m.hint}
               disabled={disabled}
               onClick={() => setMode(m.key)}
-              className={clsx("rounded-full px-3 py-1 text-[11px] font-medium transition", active ? "bg-brand-cyan text-navy shadow-glow" : "text-slate-300 hover:bg-white/10 disabled:opacity-40")}
+              className={clsx("shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-[11px] font-medium transition", active ? "bg-brand-cyan text-navy shadow-glow" : "text-slate-300 hover:bg-white/10 disabled:opacity-40")}
             >
               {m.label}
             </button>

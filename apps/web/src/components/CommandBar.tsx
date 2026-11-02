@@ -110,9 +110,9 @@ export function CommandBar() {
           title={`WebSocket ${WS_LABELS[ws]}`}
         >
           <StatusDot color={WS_COLORS[ws]} label={`WebSocket ${WS_LABELS[ws]}`} pulse={ws !== "connected"} />
-          <span>{WS_LABELS[ws]}</span>
+          <span className="hidden sm:inline">{WS_LABELS[ws]}</span>
           {office !== "nominal" ? (
-            <span className="ml-1 rounded-full bg-white/10 px-1.5 capitalize text-slate-200">{office}</span>
+            <span className="ml-1 hidden rounded-full bg-white/10 px-1.5 capitalize text-slate-200 sm:inline">{office}</span>
           ) : null}
         </div>
       </div>
