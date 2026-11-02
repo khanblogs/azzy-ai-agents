@@ -31,6 +31,9 @@ tool_defaults:
   trivy.scan: low
   checkov.scan: low
   playwright.run: low
+  web.fetch: low
+  web.scrape: low
+  web.screenshot: low
   aws.deploy: medium
   aws.rollback: medium
   ssh.safe_action: medium
@@ -129,4 +132,7 @@ tool_allowlist:
   - knowledge.search
   - agent.message
   - playwright.run
+  - web.fetch
+  - web.scrape
+  - web.screenshot
   - memory.write

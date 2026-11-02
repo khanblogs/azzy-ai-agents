@@ -38,6 +38,18 @@ RUN if [ "$WITH_SCANNERS" = "1" ]; then \
       chmod +x /usr/local/bin/gitleaks /usr/local/bin/trivy; \
     fi
 
+# Obscura headless browser for the web.* tools (WITH_OBSCURA=1 by default; the
+# plain release build renders but has no stealth transport — anti-detect is
+# deliberately not bundled). obscura + obscura-worker must stay together.
+ARG WITH_OBSCURA=1
+ARG OBSCURA_VERSION=0.2.6
+RUN if [ "$WITH_OBSCURA" = "1" ]; then \
+      set -eux; \
+      apt-get update && apt-get install -y --no-install-recommends curl tar && rm -rf /var/lib/apt/lists/*; \
+      curl -fsSL "https://github.com/h4ckf0r0day/obscura/releases/download/v${OBSCURA_VERSION}/obscura-x86_64-linux.tar.gz" | tar -xz -C /usr/local/bin obscura obscura-worker; \
+      chmod +x /usr/local/bin/obscura /usr/local/bin/obscura-worker; \
+    fi
+
 COPY --chown=azzy:azzy apps/api /app
 COPY --chown=azzy:azzy packages/agents /app/packages/agents
 

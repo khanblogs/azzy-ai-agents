@@ -33,6 +33,9 @@ tools:
   - knowledge.search
   - agent.message
   - memory.write
+  - web.fetch
+  - web.scrape
+  - web.screenshot
 budgets:
   daily_usd: 5.00
   max_tokens_per_task: 60000
