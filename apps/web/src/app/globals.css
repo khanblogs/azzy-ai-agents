@@ -6,12 +6,17 @@
   color-scheme: dark;
   --sat: env(safe-area-inset-top, 0px);
   --sab: env(safe-area-inset-bottom, 0px);
+  /* Theme palette (RGB triplets). Dark values are the original design. */
+  --c-navy: 5 8 22;
+  --c-panel: 11 16 37;
+  --c-line: 26 33 64;
+  --glass-bg: rgba(11, 16, 37, 0.72);
 }
 
 html,
 body {
   height: 100%;
-  background: #050816;
+  background: rgb(var(--c-navy));
   color: #e2e8f0;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
@@ -39,10 +44,10 @@ body {
 }
 
 .glass {
-  background: rgba(11, 16, 37, 0.72);
+  background: var(--glass-bg);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(26, 33, 64, 1);
+  border: 1px solid rgb(var(--c-line));
 }
 
 .text-gradient {
@@ -159,4 +164,88 @@ textarea {
 
 button:active:not(:disabled) {
   transform: scale(0.98);
+}
+
+/* ------------------------------------------------------------------ */
+/* Light theme (opt-in via the ThemeToggle; dark stays the default).  */
+/* The palette tokens flip through the CSS variables above; the slate */
+/* text scale and white-alpha surfaces are remapped below so existing */
+/* components stay readable without per-component edits.              */
+/* ------------------------------------------------------------------ */
+html[data-theme="light"] {
+  color-scheme: light;
+  --c-navy: 240 244 250;
+  --c-panel: 255 255 255;
+  --c-line: 203 213 225;
+  --glass-bg: rgba(255, 255, 255, 0.82);
+}
+html[data-theme="light"] body {
+  color: #0f172a;
+  background-image:
+    radial-gradient(900px 500px at 15% -10%, rgba(0, 229, 255, 0.12), transparent 60%),
+    radial-gradient(800px 500px at 90% 0%, rgba(151, 71, 255, 0.12), transparent 60%);
+}
+html[data-theme="light"] * {
+  scrollbar-color: #c3cadb transparent;
+}
+html[data-theme="light"] *::-webkit-scrollbar-thumb {
+  background: #c3cadb;
+}
+html[data-theme="light"] .text-white {
+  color: #0f172a;
+}
+html[data-theme="light"] .text-slate-100,
+html[data-theme="light"] .text-slate-200 {
+  color: #1e293b;
+}
+html[data-theme="light"] .text-slate-300 {
+  color: #334155;
+}
+html[data-theme="light"] .text-slate-400 {
+  color: #475569;
+}
+html[data-theme="light"] .text-slate-500 {
+  color: #64748b;
+}
+html[data-theme="light"] .text-slate-600 {
+  color: #94a3b8;
+}
+html[data-theme="light"] .text-navy {
+  color: #050816;
+}
+html[data-theme="light"] .border-white\/10 {
+  border-color: rgba(15, 23, 42, 0.12);
+}
+html[data-theme="light"] .border-white\/15 {
+  border-color: rgba(15, 23, 42, 0.16);
+}
+html[data-theme="light"] .border-white\/20 {
+  border-color: rgba(15, 23, 42, 0.2);
+}
+html[data-theme="light"] .bg-white\/5 {
+  background-color: rgba(15, 23, 42, 0.04);
+}
+html[data-theme="light"] .bg-white\/10 {
+  background-color: rgba(15, 23, 42, 0.08);
+}
+html[data-theme="light"] .bg-white\/40 {
+  background-color: rgba(15, 23, 42, 0.25);
+}
+html[data-theme="light"] .hover\:bg-white\/5:hover {
+  background-color: rgba(15, 23, 42, 0.05);
+}
+html[data-theme="light"] .hover\:bg-white\/10:hover {
+  background-color: rgba(15, 23, 42, 0.09);
+}
+html[data-theme="light"] .hover\:text-white:hover {
+  color: #0f172a;
+}
+html[data-theme="light"] input,
+html[data-theme="light"] textarea,
+html[data-theme="light"] select {
+  color: #0f172a;
+}
+html[data-theme="light"] input::placeholder,
+html[data-theme="light"] textarea::placeholder {
+  color: #94a3b8;
 }

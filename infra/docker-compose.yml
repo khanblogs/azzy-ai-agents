@@ -92,6 +92,8 @@ services:
       args:
         WITH_SCANNERS: ${WITH_SCANNERS:-1}
     image: azzy-api
+    group_add:
+      - "109"  # host docker group - lets the azzy user reach the mounted docker.sock (sandbox.run)
     restart: unless-stopped
     command: ["uvicorn", "azzy.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "${UVICORN_WORKERS:-1}"]
     env_file: .env
@@ -105,6 +107,7 @@ services:
     volumes:
       - artifacts:/data/artifacts
       - knowledge:/data/knowledge
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       postgres:
         condition: service_healthy
@@ -131,6 +134,8 @@ services:
 
   worker:
     image: azzy-api
+    group_add:
+      - "109"  # host docker group - lets the azzy user reach the mounted docker.sock (sandbox.run)
     build:
       context: ..
       dockerfile: apps/api/Dockerfile
@@ -153,6 +158,7 @@ services:
     volumes:
       - artifacts:/data/artifacts
       - knowledge:/data/knowledge
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       api:
         condition: service_healthy

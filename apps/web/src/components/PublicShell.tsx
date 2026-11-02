@@ -7,6 +7,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { PUBLIC_LINKS } from "@/lib/nav";
 import { FooterCredit, Wordmark } from "./Brand";
 import { IconClose, IconMenu } from "./Icons";
+import { ThemeToggle } from "./ThemeToggle";
 
 export function PublicShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -35,6 +36,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
             ))}
           </nav>
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             <Link href={hasSession ? "/app" : "/login"} className="inline-flex h-9 items-center rounded-xl bg-brand-cyan px-4 text-sm font-semibold text-navy shadow-glow hover:brightness-110" data-testid="cta-login">
               {hasSession ? "Open portal" : "Sign in"}
             </Link>

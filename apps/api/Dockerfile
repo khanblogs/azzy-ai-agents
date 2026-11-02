@@ -65,6 +65,18 @@ RUN if [ "$WITH_LOCAL_EMBEDDINGS" = "1" ]; then \
       ls -la /opt/models/all-MiniLM-L6-v2; \
     fi
 
+# Docker CLI for Emir's sandbox.run tool (WITH_SANDBOX=1 by default). The CLI
+# alone is inert - it only works where /var/run/docker.sock is mounted into the
+# container (see infra/docker-compose.yml, api + worker services).
+ARG WITH_SANDBOX=1
+ARG DOCKER_CLI_VERSION=27.5.1
+RUN if [ "$WITH_SANDBOX" = "1" ]; then \
+      set -eux; \
+      apt-get update && apt-get install -y --no-install-recommends curl tar && rm -rf /var/lib/apt/lists/*; \
+      curl -fsSL "https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_CLI_VERSION}.tgz" | tar -xz -C /usr/local/bin --strip-components=1 docker/docker; \
+      docker --version; \
+    fi
+
 COPY --chown=azzy:azzy apps/api /app
 COPY --chown=azzy:azzy packages/agents /app/packages/agents
 

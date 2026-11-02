@@ -7,11 +7,11 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        navy: "#050816",
-        midnight: "#0B1025",
-        base: "#050816",
-        panel: "#0B1025",
-        line: "#1a2140",
+        navy: "rgb(var(--c-navy) / <alpha-value>)",
+        midnight: "rgb(var(--c-panel) / <alpha-value>)",
+        base: "rgb(var(--c-navy) / <alpha-value>)",
+        panel: "rgb(var(--c-panel) / <alpha-value>)",
+        line: "rgb(var(--c-line) / <alpha-value>)",
         brand: {
           cyan: "#00E5FF",
           purple: "#9747FF",

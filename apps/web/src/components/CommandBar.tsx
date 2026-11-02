@@ -6,6 +6,7 @@ import { api, ApiError } from "@/lib/api";
 import { can, useAzzy } from "@/store/useAzzy";
 import { Logo } from "./Brand";
 import { IconSend } from "./Icons";
+import { ThemeToggle } from "./ThemeToggle";
 import { StatusDot } from "./StatusDot";
 
 const WS_COLORS = { connected: "#22c55e", connecting: "#eab308", disconnected: "#ef4444" } as const;
@@ -101,6 +102,7 @@ export function CommandBar() {
             <IconSend width={18} height={18} />
           </button>
         </form>
+        <ThemeToggle />
         <div
           className="flex shrink-0 items-center gap-1.5 rounded-full border border-line px-2 py-1 text-[11px] text-slate-300"
           data-testid="ws-status"

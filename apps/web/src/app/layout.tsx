@@ -33,8 +33,13 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" className="dark" data-theme="dark" suppressHydrationWarning>
       <body className="font-sans">
+        <script
+          dangerouslySetInnerHTML={{
+            __html: "try{var t=localStorage.getItem('azzy-theme');document.documentElement.dataset.theme=(t==='light'||t==='dark')?t:'dark';}catch(e){document.documentElement.dataset.theme='dark';}",
+          }}
+        />
         {children}
         <Toasts />
       </body>
