@@ -771,7 +771,7 @@ class LiteLLMGateway:
                 kwargs: dict[str, Any] = {
                     "model": candidate,
                     "messages": cleaned,
-                    "max_tokens": 1024,
+                    "max_tokens": int(os.environ.get("LLM_MAX_TOKENS", "4096")),
                     "temperature": 0.2,
                     "timeout": 90,
                 }

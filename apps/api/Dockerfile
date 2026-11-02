@@ -28,11 +28,13 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 # nuclei and ZAP are NOT bundled (Go/Java footprint); the tools report "not installed" when absent.
 ARG WITH_SCANNERS=0
 ARG GITLEAKS_VERSION=8.21.2
-ARG TRIVY_VERSION=0.58.1
+ARG TRIVY_VERSION=0.76.1
 RUN if [ "$WITH_SCANNERS" = "1" ]; then \
       set -eux; \
       apt-get update && apt-get install -y --no-install-recommends curl tar git && rm -rf /var/lib/apt/lists/*; \
-      pip install --no-cache-dir "semgrep==1.101.0" "checkov==3.2.344"; \
+      python3 -m venv /opt/scanners; \
+      /opt/scanners/bin/pip install --no-cache-dir "semgrep==1.101.0" "checkov==3.2.344" "setuptools<81"; \
+      ln -sf /opt/scanners/bin/semgrep /opt/scanners/bin/checkov /usr/local/bin/; \
       curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | tar -xz -C /usr/local/bin gitleaks; \
       curl -fsSL "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz" | tar -xz -C /usr/local/bin trivy; \
       chmod +x /usr/local/bin/gitleaks /usr/local/bin/trivy; \
