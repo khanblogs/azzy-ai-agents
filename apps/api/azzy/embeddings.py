@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import math
+import os
 import re
 
 log = logging.getLogger("azzy.embeddings")
@@ -68,10 +69,79 @@ def chunk_text(text: str, max_chars: int = 900, overlap: int = 120) -> list[str]
     return chunks or [text[:max_chars]]
 
 
+
+# --- Local embeddings (ONNX MiniLM) -------------------------------------------
+# With EMBEDDINGS_BACKEND=local, real-mode embeddings come from a local
+# all-MiniLM-L6-v2 ONNX model (384 dims — the same space the DB schema uses),
+# so semantic search and recall work with no cloud credential. Loaded lazily.
+
+_LOCAL_MODEL_DIR = os.environ.get("LOCAL_EMBEDDINGS_DIR", "/opt/models/all-MiniLM-L6-v2")
+_local_session = None
+_local_tokenizer = None
+_local_load_failed = False
+
+
+def _load_local() -> bool:
+    global _local_session, _local_tokenizer, _local_load_failed
+    if _local_session is not None:
+        return True
+    if _local_load_failed:
+        return False
+    try:
+        import onnxruntime as ort  # noqa: PLC0415
+        from tokenizers import Tokenizer  # noqa: PLC0415
+
+        _local_tokenizer = Tokenizer.from_file(f"{_LOCAL_MODEL_DIR}/tokenizer.json")
+        _local_tokenizer.enable_padding()
+        _local_tokenizer.enable_truncation(max_length=256)
+        _local_session = ort.InferenceSession(
+            f"{_LOCAL_MODEL_DIR}/model.onnx", providers=["CPUExecutionProvider"]
+        )
+        return True
+    except Exception as exc:  # noqa: BLE001 - local model is optional; callers degrade
+        _local_load_failed = True
+        log.warning("local embeddings unavailable", extra={"fields": {"error": type(exc).__name__}})
+        return False
+
+
+def embed_local_sync(text: str) -> list[float] | None:
+    """Synchronous local MiniLM embedding (mean-pooled, L2-normalised, 384 dims)."""
+    if not _load_local():
+        return None
+    try:
+        import numpy as np  # noqa: PLC0415
+
+        enc = _local_tokenizer.encode(text[:8000])
+        input_ids = np.array([enc.ids], dtype=np.int64)
+        attn = np.array([enc.attention_mask], dtype=np.int64)
+        token_type = np.zeros_like(input_ids)
+        outputs = _local_session.run(
+            None,
+            {"input_ids": input_ids, "attention_mask": attn, "token_type_ids": token_type},
+        )
+        hidden = outputs[0][0]  # (seq, 384)
+        mask = attn[0].astype(np.float64)
+        vector = (hidden * mask[:, None]).sum(axis=0) / max(mask.sum(), 1.0)
+        norm = float(np.sqrt((vector * vector).sum()))
+        if norm == 0:
+            return None
+        return [float(v) for v in (vector / norm)]
+    except Exception as exc:  # noqa: BLE001
+        log.warning("local embedding failed", extra={"fields": {"error": type(exc).__name__}})
+        return None
+
+
 async def embed(text: str, *, demo: bool, model: str = "bedrock/amazon.titan-embed-text-v2:0", region: str = "ap-south-1") -> list[float] | None:
-    """DEMO → hashed; real → LiteLLM embeddings (384 dims). Returns None when the real call fails."""
+    """DEMO → hashed; EMBEDDINGS_BACKEND=local → local MiniLM; else LiteLLM (384 dims).
+
+    Returns None when the real call fails.
+    """
     if demo:
         return hashed_embedding(text)
+    if os.environ.get("EMBEDDINGS_BACKEND", "").lower() == "local":
+        import asyncio  # noqa: PLC0415
+
+        return await asyncio.to_thread(embed_local_sync, text)
     try:
         import litellm  # noqa: PLC0415
 

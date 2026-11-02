@@ -52,6 +52,19 @@ RUN if [ "$WITH_OBSCURA" = "1" ]; then \
       chmod +x /usr/local/bin/obscura /usr/local/bin/obscura-worker; \
     fi
 
+# Local embedding model for real-mode semantic search (WITH_LOCAL_EMBEDDINGS=1
+# by default): all-MiniLM-L6-v2 ONNX (384 dims — matches the pgvector schema),
+# so embeddings need no cloud credential. libgomp1 is onnxruntime's runtime dep.
+ARG WITH_LOCAL_EMBEDDINGS=1
+RUN if [ "$WITH_LOCAL_EMBEDDINGS" = "1" ]; then \
+      set -eux; \
+      apt-get update && apt-get install -y --no-install-recommends curl libgomp1 && rm -rf /var/lib/apt/lists/*; \
+      mkdir -p /opt/models/all-MiniLM-L6-v2; \
+      curl -fsSL "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/onnx/model.onnx" -o /opt/models/all-MiniLM-L6-v2/model.onnx; \
+      curl -fsSL "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/tokenizer.json" -o /opt/models/all-MiniLM-L6-v2/tokenizer.json; \
+      ls -la /opt/models/all-MiniLM-L6-v2; \
+    fi
+
 COPY --chown=azzy:azzy apps/api /app
 COPY --chown=azzy:azzy packages/agents /app/packages/agents
 
