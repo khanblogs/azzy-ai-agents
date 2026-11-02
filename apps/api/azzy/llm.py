@@ -19,6 +19,7 @@ import json
 import logging
 import os
 import re
+from datetime import UTC, datetime
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Protocol
@@ -731,6 +732,9 @@ class LiteLLMGateway:
         self._region = region
         self._default_model = default_model
         self._task_tokens: dict[str, int] = {}
+        self._task_bedrock_tokens: dict[str, int] = {}
+        self._daily_bedrock: dict[str, tuple[str, int]] = {}
+        self._overflow_logged: set[str] = set()
 
     def _fallbacks(self) -> list[str]:
         models: list[str] = []
@@ -741,6 +745,24 @@ class LiteLLMGateway:
         if os.environ.get("OPENAI_API_KEY"):
             models.append("openai/gpt-4o")
         return models
+
+    def _bedrock_overflow(self, agent_id: str, task_id: str | None) -> bool:
+        """True when Bedrock usage passed the soft limits (env-tunable, 0 = off).
+
+        Past the limit the gateway prefers the free OmniRoute chain so a long
+        task cannot keep billing Bedrock without bound; the hard daily USD cap
+        in _check_budget still applies on top.
+        """
+        task_soft = int(os.environ.get("BEDROCK_TASK_SOFT_TOKENS", "150000"))
+        if task_id and task_soft > 0 and self._task_bedrock_tokens.get(task_id, 0) >= task_soft:
+            return True
+        daily_soft = int(os.environ.get("BEDROCK_DAILY_SOFT_TOKENS", "600000"))
+        if daily_soft > 0:
+            today = datetime.now(UTC).strftime("%Y-%m-%d")
+            day, tokens = self._daily_bedrock.get(agent_id, (today, 0))
+            if day == today and tokens >= daily_soft:
+                return True
+        return False
 
     def _check_budget(self, agent_id: str, task_id: str | None) -> AgentBudget:
         budget = self._budgets.get(agent_id) or AgentBudget(5.0, 60_000, self._default_model or "")
@@ -768,6 +790,15 @@ class LiteLLMGateway:
             # Caller-requested model first (e.g. meeting lines), the agent's own
             # pinned model stays in the chain as the fallback.
             chain = list(dict.fromkeys([model, agent_model, *self._fallbacks()]))
+        elif agent_model.startswith("bedrock/") and self._bedrock_overflow(agent_id, task_id):
+            # Cost guardrail: this task (or this agent today) has used its Bedrock
+            # allowance - route via the free OmniRoute upstream first and keep
+            # Bedrock only as the last-resort fallback so work never stalls.
+            chain = list(dict.fromkeys([*self._fallbacks(), agent_model]))
+            marker = task_id or agent_id
+            if marker not in self._overflow_logged:
+                self._overflow_logged.add(marker)
+                log.warning(json.dumps({"event": "llm.bedrock_overflow", "agent": agent_id, "task": task_id, "task_bedrock_tokens": self._task_bedrock_tokens.get(task_id or "", 0)}))
         else:
             chain = [agent_model, *self._fallbacks()]
         cleaned = _to_openai_messages(messages)
@@ -791,14 +822,14 @@ class LiteLLMGateway:
                 if candidate.startswith("bedrock/"):
                     kwargs["aws_region_name"] = self._region
                 response = await litellm.acompletion(**kwargs)
-                return self._parse(response, candidate, task_id)
+                return self._parse(response, candidate, task_id, agent_id)
             except Exception as exc:  # noqa: BLE001 - we fall through the chain, then raise the last error
                 last_error = exc
                 log.warning(json.dumps({"event": "llm.fallback", "agent": agent_id, "model": candidate, "error": type(exc).__name__}))
                 continue
         raise RuntimeError(f"all models failed for {agent_id}: {type(last_error).__name__ if last_error else 'unknown'}")
 
-    def _parse(self, response: Any, model: str, task_id: str | None) -> LLMResult:
+    def _parse(self, response: Any, model: str, task_id: str | None, agent_id: str = "") -> LLMResult:
         choice = response.choices[0]
         message = choice.message
         calls: list[ToolCall] = []
@@ -814,6 +845,14 @@ class LiteLLMGateway:
         output_tokens = int(getattr(usage_obj, "completion_tokens", 0) or 0)
         if task_id:
             self._task_tokens[task_id] = self._task_tokens.get(task_id, 0) + input_tokens + output_tokens
+        if model.startswith("bedrock/"):
+            total = input_tokens + output_tokens
+            if task_id:
+                self._task_bedrock_tokens[task_id] = self._task_bedrock_tokens.get(task_id, 0) + total
+            if agent_id:
+                today = datetime.now(UTC).strftime("%Y-%m-%d")
+                day, tokens = self._daily_bedrock.get(agent_id, (today, 0))
+                self._daily_bedrock[agent_id] = (today, (tokens if day == today else 0) + total)
         text = message.content if isinstance(message.content, str) else ""
         return LLMResult(
             text=text or "",
@@ -824,3 +863,5 @@ class LiteLLMGateway:
 
     def forget_task(self, task_id: str) -> None:
         self._task_tokens.pop(task_id, None)
+        self._task_bedrock_tokens.pop(task_id, None)
+        self._overflow_logged.discard(task_id)

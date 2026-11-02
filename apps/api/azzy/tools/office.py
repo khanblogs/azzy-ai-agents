@@ -98,6 +98,29 @@ def _build_xlsx(ctx: ToolContext, args: dict[str, Any]) -> str:
     from openpyxl.styles import Font, PatternFill  # noqa: PLC0415
 
     title = str(args.get("title") or "Budget model")
+    tables = args.get("tables") or []
+    if tables:
+        wb = Workbook()
+        header_font, header_fill = Font(bold=True, color="FFFFFF"), PatternFill("solid", fgColor="0F172A")
+        first = True
+        for table in tables:
+            ws = wb.active if first else wb.create_sheet()
+            first = False
+            ws.title = str(table.get("sheet") or table.get("name") or "Sheet")[:31]
+            columns = [str(c) for c in (table.get("columns") or [])]
+            for col, label in enumerate(columns, start=1):
+                cell = ws.cell(row=1, column=col, value=label)
+                cell.font, cell.fill = header_font, header_fill
+            rows = table.get("rows") or []
+            for r, row in enumerate(rows, start=2):
+                values = row if isinstance(row, (list, tuple)) else [row.get(c, "") for c in columns] if isinstance(row, dict) else [row]
+                for col, value in enumerate(values, start=1):
+                    ws.cell(row=r, column=col, value=value)
+            for col, label in enumerate(columns, start=1):
+                ws.column_dimensions[ws.cell(row=1, column=col).column_letter].width = max(14, min(46, len(label) + 8))
+        path = _artifact_path(ctx, title, "xlsx")
+        wb.save(str(path))
+        return _result(path, sheets=wb.sheetnames, tables=len(tables), title=title)
     months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
     lines: list[dict[str, Any]] = list(args.get("lines") or [])
     if not lines:
@@ -167,7 +190,9 @@ def _build_pdf(ctx: ToolContext, args: dict[str, Any]) -> str:
     from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer  # noqa: PLC0415
 
     title = str(args.get("title") or "AZZY AI AGENTS report")
-    sections = args.get("sections") or ["Summary", "Details", "Next steps"]
+    sections = args.get("sections") or []
+    if not sections:
+        raise ValueError("pdf.export refused: pass sections as [{title, body}] with the real report text for every section - headings alone are not a report.")
     styles = getSampleStyleSheet()
     story: list[Any] = [Paragraph(title, styles["Title"]), Paragraph(f"Prepared by {ctx.agent_id.title()} · {datetime.now(UTC):%d %b %Y}", styles["Normal"]), Spacer(1, 0.6 * cm)]
     for section in sections:
@@ -175,8 +200,10 @@ def _build_pdf(ctx: ToolContext, args: dict[str, Any]) -> str:
             heading, body = str(section.get("title", "Section")), str(section.get("body", ""))
         else:
             heading, body = str(section), str(args.get("body", {}).get(str(section), "")) if isinstance(args.get("body"), dict) else ""
+        if not body.strip():
+            raise ValueError(f"pdf.export refused: section '{heading}' has no body. Write the real content (facts, figures, findings from your research) into each section's body - placeholder or invented filler text is never acceptable.")
         story.append(Paragraph(heading, styles["Heading2"]))
-        story.append(Paragraph(body or f"{heading}: content prepared by AZZY AI AGENTS. Figures sourced from the weekly data set.", styles["BodyText"]))
+        story.append(Paragraph(body, styles["BodyText"]))
         story.append(Spacer(1, 0.4 * cm))
     path = _artifact_path(ctx, title, "pdf")
     SimpleDocTemplate(str(path), pagesize=A4, title=title, author="AZZY AI AGENTS").build(story)
@@ -208,7 +235,7 @@ SPECS: list[ToolSpec] = [
     ToolSpec("pptx.build", "Build a PowerPoint deck into the artifacts folder.", "low",
              schema({"title": str_prop("Deck title"), "subtitle": str_prop("Cover subtitle"), "slides": {"type": "array", "description": "slide titles or {title, bullets[]}"}}, ["title"]), pptx_build, demo_passthrough=True),
     ToolSpec("xlsx.model", "Build an Excel model (Assumptions → Budget formulas → Summary) into the artifacts folder.", "low",
-             schema({"title": str_prop("Workbook title"), "lines": {"type": "array", "description": "[{name, monthly, growth}]"}, "sheets": {"type": "array", "description": "extra sheet names"}}, ["title"]), xlsx_model, demo_passthrough=True),
+             schema({"title": str_prop("Workbook title"), "lines": {"type": "array", "description": "[{name, monthly, growth}]"}, "sheets": {"type": "array", "description": "extra EMPTY sheet names (legacy model mode only)"}, "tables": {"type": "array", "description": "data mode: [{sheet, columns[], rows[[...]] or rows[{col: value}]}] - builds a workbook with ONLY these sheets and the real data rows"}}, ["title"]), xlsx_model, demo_passthrough=True),
     ToolSpec("pdf.export", "Export a PDF report into the artifacts folder.", "low",
-             schema({"title": str_prop("Report title"), "sections": {"type": "array", "description": "section titles or {title, body}"}}, ["title"]), pdf_export, demo_passthrough=True),
+             schema({"title": str_prop("Report title"), "sections": {"type": "array", "description": "REQUIRED: [{title, body}] - every section must carry its full real report text in body; headings alone are refused"}}, ["title"]), pdf_export, demo_passthrough=True),
 ]
