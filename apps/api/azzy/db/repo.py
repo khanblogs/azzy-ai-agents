@@ -863,7 +863,7 @@ async def search_chunks(session: AsyncSession, *, embedding: list[float], scopes
     out: list[dict[str, Any]] = []
     for chunk, document in rows:
         score = cosine(list(chunk.embedding), embedding) if chunk.embedding is not None else 0.0
-        out.append({"document_id": document.id, "title": document.title, "chunk": chunk.content, "score": round(score, 4), "scope": document.scope})
+        out.append({"document_id": document.id, "title": document.title, "chunk": chunk.content, "score": float(round(score, 4)), "scope": document.scope})
     return out
 
 def _lexical_terms(query: str) -> list[str]:

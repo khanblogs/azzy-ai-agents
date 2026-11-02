@@ -40,7 +40,7 @@ from azzy.tools.base import NotConfigured, ToolContext, ToolError, ToolSpec, sch
 
 FETCH_TIMEOUT_S = 45  # obscura --timeout value
 PROC_TIMEOUT_S = 75  # hard kill for the subprocess
-MAX_FETCH_CHARS = 20_000
+MAX_FETCH_CHARS = 8_000
 MAX_SCRAPE_URLS = 5
 MAX_SCRAPE_CHARS_PER_PAGE = 6_000
 
