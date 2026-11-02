@@ -45,7 +45,7 @@ tools:
 budgets:
   daily_usd: 5.00
   max_tokens_per_task: 60000
-  model: openai/ddgw/claude-haiku-4-5
+  model: bedrock/converse/in.anthropic.claude-haiku-4-5-20251001-v1:0
 routines:
   - id: monday_growth_report
     cron: "0 10 * * 1"

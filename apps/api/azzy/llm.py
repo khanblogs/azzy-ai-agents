@@ -734,6 +734,8 @@ class LiteLLMGateway:
 
     def _fallbacks(self) -> list[str]:
         models: list[str] = []
+        if os.environ.get("LLM_FALLBACK_MODEL"):
+            models.append(os.environ["LLM_FALLBACK_MODEL"])
         if os.environ.get("ANTHROPIC_API_KEY"):
             models.append("anthropic/claude-3-5-sonnet-20241022")
         if os.environ.get("OPENAI_API_KEY"):

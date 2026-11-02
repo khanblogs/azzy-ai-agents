@@ -41,7 +41,7 @@ tools:
 budgets:
   daily_usd: 8.00
   max_tokens_per_task: 90000
-  model: openai/ddgw/claude-haiku-4-5
+  model: bedrock/converse/in.anthropic.claude-haiku-4-5-20251001-v1:0
 routines: []
 skills:
   - code_review
