@@ -70,6 +70,28 @@ WORKFLOW_STATES: tuple[PipelineState, ...] = (
 INCIDENT_SIDE_MEMBERS: tuple[str, ...] = ("emir", "cyber", "sara")
 
 
+_MEMORY_KINDS = {"fact", "lesson", "skill_proposal"}
+
+
+def _parse_memory_lines(text: str) -> list[tuple[str, str]]:
+    """Parse 'kind: text' lines from an LLM memory-extraction reply.
+
+    Strict on purpose: unknown kinds, missing separators and too-short or
+    too-long bodies are dropped, and a leading list marker/number is forgiven.
+    Returns at most 3 memories.
+    """
+    out: list[tuple[str, str]] = []
+    for raw in (text or "").splitlines():
+        line = raw.strip().lstrip("-*").strip()
+        line = re.sub(r"^\d+[.)]\s*", "", line)
+        kind, sep, body = line.partition(":")
+        kind = kind.strip().lower()
+        body = body.strip()
+        if sep and kind in _MEMORY_KINDS and 20 <= len(body) <= 300:
+            out.append((kind, body))
+    return out[:3]
+
+
 class TaskAborted(Exception):
     """Raised inside a stage to stop the pipeline with a final state + result."""
 
@@ -436,7 +458,7 @@ class AgentRunner:
         """Learn phase: 1-3 durable memories via the memory.write tool (real DB write, even in DEMO)."""
         agent = self.agents[agent_id]
         await self.phase(agent_id, "learn", ctx.task_id, "writing memories")
-        for kind, text in self._memory_texts(ctx, agent_id, final)[:3]:
+        for kind, text in (await self._learn_texts(ctx, agent_id, final))[:3]:
             outcome = await self.executor.execute(agent, "memory.write", {"kind": kind, "text": text}, task_id=ctx.task_id, env=ctx.env, env_row=ctx.env_row, seed=ctx.task_id)
             if not outcome.ok:
                 continue
@@ -448,6 +470,33 @@ class AgentRunner:
             await self.emit(MemoryWrittenEvent(agent=agent_id, task_id=ctx.task_id, memory_id=memory_id, text=text, kind=kind))
             await self.award_xp(agent_id, XP_MEMORY)
             await self.pace(0.3, 0.6)
+
+    async def _learn_texts(self, ctx: TaskContext, agent_id: str, final: str) -> list[tuple[str, str]]:
+        """Real mode: extract durable memories from what actually happened in this task
+        (one LLM call over the task transcript). DEMO — and any extraction failure —
+        keeps the scripted templates, so the learn phase can never break a task."""
+        if not self.demo:
+            try:
+                extracted = await self._extract_memories(ctx, agent_id, final)
+            except Exception:  # noqa: BLE001
+                extracted = None
+            if extracted:
+                return extracted
+        return self._memory_texts(ctx, agent_id, final)
+
+    async def _extract_memories(self, ctx: TaskContext, agent_id: str, final: str) -> list[tuple[str, str]] | None:
+        tools_used = ", ".join(sorted({o.tool for o in ctx.outcomes})) or "none"
+        transcript = (
+            f"Task: {ctx.title}\nKind: {ctx.kind}\nRequest: {ctx.prompt[:600]}\n"
+            f"Tools used: {tools_used}\nOutcome: {(final or '')[:1500]}"
+        )
+        messages = [
+            {"role": "system", "content": "You extract durable memories for an AI agent from a completed task. Output ONLY up to 3 lines, one memory per line, formatted exactly as 'fact: <text>' or 'lesson: <text>'. A fact is a concrete state of the world worth remembering (versions, configs, decisions). A lesson is a reusable rule learned from this task. No preamble, no numbering, no markdown."},
+            {"role": "user", "content": transcript},
+        ]
+        result = await asyncio.wait_for(self.llm.complete(agent_id, messages, [], task_id=ctx.task_id), timeout=45)
+        parsed = _parse_memory_lines(result.text)
+        return parsed or None
 
     def _memory_texts(self, ctx: TaskContext, agent_id: str, final: str) -> list[tuple[str, str]]:
         env_name = (ctx.env_row or {}).get("name") or "HQ"
@@ -622,7 +671,7 @@ class AgentRunner:
 
     # ---- chat (CONTRACT-v2 §4) -------------------------------------------------------------
 
-    async def _live_state(self, agent_id: str) -> dict[str, Any]:
+    async def _live_state(self, agent_id: str, query: str | None = None) -> dict[str, Any]:
         async with session_scope() as session:
             envs = [repo.env_to_dict(e) for e in await repo.list_environments(session)]
             accounts = [repo.account_to_model(a).model_dump() for a in await repo.list_accounts(session)]
@@ -632,7 +681,7 @@ class AgentRunner:
             costs = await repo.cost_summary(session, self.settings.DAILY_BUDGET_USD)
             last_dep = await repo.last_deployment(session)
             last_scan = await repo.last_scan_log(session)
-            memories = [repo.memory_to_dict(m) for m in await repo.list_memories(session, agent=agent_id, limit=5)]
+            memories = await self._recall_memories(session, agent_id, query)
         return {
             "environments": [{k: e.get(k) for k in ("id", "name", "kind", "health", "version")} for e in envs],
             "accounts": [{k: a.get(k) for k in ("name", "account_id", "scope", "status")} for a in accounts if a.get("status") == "verified"],
@@ -643,6 +692,22 @@ class AgentRunner:
             "memories": [m["text"] for m in memories],
         }
 
+    async def _recall_memories(self, session: Any, agent_id: str, query: str | None) -> list[dict[str, Any]]:
+        """Semantic recall first (embeddings are stored on every memory); recency fallback."""
+        if query:
+            vector = None
+            try:
+                from azzy.embeddings import embed  # noqa: PLC0415
+
+                vector = await embed(query, demo=self.demo, model=self.settings.EMBEDDINGS_MODEL, region=self.settings.AWS_REGION)
+            except Exception:  # noqa: BLE001
+                vector = None
+            if vector is not None:
+                rows = await repo.search_memories(session, agent=agent_id, embedding=vector, limit=5)
+                if rows:
+                    return [repo.memory_to_dict(m) for m in rows]
+        return [repo.memory_to_dict(m) for m in await repo.list_memories(session, agent=agent_id, limit=5)]
+
     async def run_chat(self, ctx: TaskContext) -> None:
         agent_id = ctx.lead
         conversation_id = str(ctx.meta.get("conversation_id") or "")
@@ -651,7 +716,7 @@ class AgentRunner:
         await self.phase(agent_id, "chatting", ctx.task_id, "replying")
         async with session_scope() as session:
             history = [repo.chat_message_to_model(m).model_dump() for m in await repo.list_chat_messages(session, conversation_id, limit=20)] if conversation_id else []
-        live = await self._live_state(agent_id)
+        live = await self._live_state(agent_id, query=user_message)
         knowledge: list[dict[str, Any]] = []
         try:
             from azzy.embeddings import embed  # noqa: PLC0415

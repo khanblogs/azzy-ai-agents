@@ -77,6 +77,10 @@ async def search(session: AsyncSession, settings: Settings, *, query: str, role:
             return []
         allowed = {scope}
     vector = await embed(query, demo=settings.DEMO, model=settings.EMBEDDINGS_MODEL, region=settings.AWS_REGION)
-    if vector is None:
-        return []
-    return await repo.search_chunks(session, embedding=vector, scopes=allowed, limit=limit)
+    if vector is not None:
+        results = await repo.search_chunks(session, embedding=vector, scopes=allowed, limit=limit)
+        if results:
+            return results
+    # Embeddings unavailable (or no vector hits): lexical fallback, so grounding never
+    # silently comes back empty.
+    return await repo.search_chunks_lexical(session, query=query, scopes=allowed, limit=limit)

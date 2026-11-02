@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import math
+import re
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import delete, desc, func, select, update
+from sqlalchemy import delete, desc, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from azzy.costs import CostRow as CostTuple
@@ -864,6 +865,52 @@ async def search_chunks(session: AsyncSession, *, embedding: list[float], scopes
         score = cosine(list(chunk.embedding), embedding) if chunk.embedding is not None else 0.0
         out.append({"document_id": document.id, "title": document.title, "chunk": chunk.content, "score": round(score, 4), "scope": document.scope})
     return out
+
+def _lexical_terms(query: str) -> list[str]:
+    """Distinct query terms (>=3 chars, max 8) used by the lexical fallbacks."""
+    seen: list[str] = []
+    for term in re.split(r"[^a-z0-9]+", query.lower()):
+        if len(term) >= 3 and term not in seen:
+            seen.append(term)
+    return seen[:8]
+
+
+async def search_chunks_lexical(session: AsyncSession, *, query: str, scopes: set[str], limit: int = 8) -> list[dict[str, Any]]:
+    """Keyword fallback for knowledge search when embeddings are unavailable or return no
+    hits: ILIKE match over chunk text, ranked in Python by the fraction of query terms
+    present. Same result shape as search_chunks, so callers cannot tell the difference."""
+    terms = _lexical_terms(query)
+    if not terms:
+        return []
+    stmt = (
+        select(DocumentChunkRow, DocumentRow)
+        .join(DocumentRow, DocumentRow.id == DocumentChunkRow.document_id)
+        .where(DocumentRow.scope.in_(sorted(scopes)), or_(*[DocumentChunkRow.content.ilike(f"%{t}%") for t in terms]))
+        .limit(limit * 4)
+    )
+    rows = (await session.execute(stmt)).all()
+    scored: list[tuple[float, dict[str, Any]]] = []
+    for chunk, document in rows:
+        text = chunk.content.lower()
+        hits = sum(1 for t in terms if t in text)
+        if hits:
+            score = round(hits / len(terms), 4)
+            scored.append((score, {"document_id": document.id, "title": document.title, "chunk": chunk.content, "score": score, "scope": document.scope}))
+    scored.sort(key=lambda pair: pair[0], reverse=True)
+    return [item for _, item in scored[:limit]]
+
+
+async def search_memories(session: AsyncSession, *, agent: str, embedding: list[float], limit: int = 5) -> list[MemoryRow]:
+    """Semantic recall over an agent's memories (an embedding is stored at write time);
+    nearest-first by pgvector cosine distance."""
+    stmt = (
+        select(MemoryRow)
+        .where(MemoryRow.agent == agent, MemoryRow.embedding.is_not(None))
+        .order_by(MemoryRow.embedding.cosine_distance(embedding))
+        .limit(limit)
+    )
+    return list((await session.execute(stmt)).scalars().all())
+
 
 
 # ------------------------------------------------------------------------------------------
