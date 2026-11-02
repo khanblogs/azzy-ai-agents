@@ -76,7 +76,7 @@ tools:
   - web.fetch
 budgets:
   daily_usd: 6.00
-  max_tokens_per_task: 70000
+  max_tokens_per_task: 400000
   model: bedrock/converse/in.anthropic.claude-haiku-4-5-20251001-v1:0
 routines:
   - id: sunday_security_audit

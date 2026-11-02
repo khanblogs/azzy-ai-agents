@@ -44,13 +44,56 @@ tools:
   - web.screenshot
 budgets:
   daily_usd: 5.00
-  max_tokens_per_task: 60000
+  max_tokens_per_task: 400000
   model: bedrock/converse/in.anthropic.claude-haiku-4-5-20251001-v1:0
 routines:
   - id: monday_growth_report
     cron: "0 10 * * 1"
     title: Monday growth report
     prompt: Produce the weekly growth report - campaign performance, channel mix, engagement and spend versus plan - as a pptx with a PDF summary.
+  - id: sarvnex_lead_engine
+    cron: "30 8,17,22 * * *"
+    title: Sarvnex lead generation - best 20/day
+    prompt: |
+      SARVNEX LEAD GENERATION — one run of the daily engine (you run 3x daily; together the runs target ~20 best leads/day, so THIS run delivers ~4-5).
+
+      EXECUTE THIS TASK ALONE, IN ONE STAGE: you personally do the research, the scoring, the XLSX, the PDF and the report. Do NOT delegate, hand off, or ask another agent to do any part of it.
+
+      You are generating client leads for Sarvnex Technologies Pvt Ltd (founder: Shahrukh Khan) — AI + managed-cloud services: AI Engineering, Data & Digital Engineering, Software Engineering, Managed Cloud (AWS & Azure), Managed AI & Intelligent Operations. Hero proof for every pitch: Sarvnex's own AI agent platform runs live at https://azzy.negdtech.in. Services are at sarvnex.com — do NOT scrape sarvnex.com, everything you need about Sarvnex is in this prompt.
+
+      TOKEN DISCIPLINE (hard limits — your budget is finite and every page you fetch is re-read on every later step): at most 7 web.fetch calls in this ENTIRE run: up to 2 discovery pages at the start, then at most 1 page per shortlisted company (max 5 companies) (its homepage OR its contact page — pick the one most likely to show the signal and the published email/phone). Apart from the 2 discovery pages, never fetch directory, listing, marketplace or search-result pages. If a company's fit cannot be judged from that 1 page, drop it and move on. The moment you have 4 verified qualifying leads OR have used your 7 fetches, STOP researching and build the XLSX and PDF deliverables immediately — a finished file with 4 solid leads beats an unfinished run every time.
+
+      DEDUPE FIRST: recall your previous lead batches before researching (knowledge.search for "Sarvnex leads" and your own memories). Never present a company you have already presented in an earlier batch.
+
+      SOURCING — START FROM FRESH SIGNALS, NOT FAMOUS NAMES: begin with 1-2 discovery fetches from UNGATED public sources: press-release wires (PR Newswire, GlobeNewswire, Business Wire — search their funding announcements), Google News RSS feeds (news.google.com/rss/search?q=... with queries like "startup raises seed funding" or "series A funding AI startup"), or Product Hunt launches. Inc42, YourStory and Entrackr are usually login-gated — try at most one of them and move on the moment it asks for login or credits; never burn more than 1 fetch on a gated page. Shortlist companies with funding in the last ~6 months, active data/DevOps/AI-ML hiring, or a newly appointed tech leader, then verify each on the company's OWN website.
+      WHO TO TARGET: MSMEs, big corporations/enterprises, and startups — ANY sector. The filter is domain fit, not industry: they must visibly need product + services engineering work in Data Engineering, DevOps/Cloud, or AI/ML. Digital/service agencies count as MSMEs and are white-label partner targets. Decision makers: Founder/CEO (MSME, startup); CTO / Head of Engineering / VP-Director of Data, AI or Engineering (corporations).
+
+      GEO MIX (across the day's runs): ~70% global, ~30% India. Global priority markets first: Europe (Netherlands, UK, Germany, Ireland, Spain, Switzerland, Nordics, Poland), Gulf (UAE, Saudi Arabia, Qatar, Kuwait, Bahrain, Oman), New Zealand, Canada — then US, Singapore, Australia. India: Delhi NCR focused (Delhi, Gurugram, Noida, Ghaziabad, Faridabad), then Mumbai, Bengaluru, Hyderabad.
+
+      SCORING ALGORITHM (every candidate; genuine basis only — every input from a public page you actually opened with your web tools; never guess data). Chance Score /100:
+      1. Need signal strength & freshness — 30: fresh funding earmarked for platform/data/AI builds, active hiring for data/DevOps/AI-ML roles, new CTO/Head-of-Data/AI appointment, launch or migration underway. Signals older than ~6 months score near zero.
+      2. Domain fit — 25: how squarely the need sits in Data Engineering / DevOps-Cloud / AI-ML product + services work.
+      3. Budget capacity — 15: funding stage and recency, company size, headcount/revenue growth signals.
+      4. Decision-maker access — 15: a named decision maker identifiable from public sources; generic-inbox-only companies score low.
+      5. Reachability — 15: the company publishes a business email and/or phone, verified on its own website or its own official listing. Form-only or LinkedIn-only routes score lower.
+      GATE: total >=70 AND domain fit >=15 qualifies. 50-69: do not present as a lead — list it in one line under "Screened out" (company + score + why). Below 50: skip silently. 4-5 qualifying leads is the target for this run, never a quota — never pad with weak or unverified names; if fewer qualify, deliver fewer and say why.
+
+      PER QUALIFYING LEAD, COLLECT: person name, role, company, company type (MSME / Corporation / Startup), location, website, buying signal (one line) with its source, Chance Score + Fit (1-5), public business email ONLY if the company itself publishes it, public business phone ONLY if the company itself publishes it (own website or own official directory listing; company lines only, never a personal mobile), and a personalised pitch draft (their signal -> the pain it creates -> what Sarvnex does -> the live demo link -> a small ask: a 20-minute call and a free infra/cost audit; sign-off exactly "Regards, Shahrukh Khan / Sarvnex Technologies (sarvnex.com)").
+
+      CONTACT RULES: research email/phone on the company's official website (contact/footer/about/privacy pages) and its own official listings. NEVER guess or pattern-construct an email. Data-broker snippets do not count. If nothing is published, write "Not published" — that is a valid, honest result.
+
+      DELIVERABLES — INSIDE THIS APP ONLY (the owner wants the files here in the app, NOT on Google Drive or Google Sheets):
+      1. An XLSX workbook via xlsx.model containing ONLY two sheets, "Indian Leads" and "Global Leads" — no financial-model, template, Assumptions or Budget sheets — with the header row and ONE ROW PER LEAD actually filled in (an empty lead sheet is a failed deliverable). Columns: S.No | Company | Person | Role | Segment | Location | Website | Fit | Buying signal | Public email | Public phone | Status | Batch — Status "New" for every new lead.
+      2. A PDF report via pdf.export with the run summary, one section per qualifying lead (all fields + the pitch draft), and the screened-out lines.
+      3. A short task report summarising counts and the top leads — keep it under 300 words so any follow-up stage stays within budget.
+      4. A memory of this batch (companies + scores) so future runs dedupe against it.
+      Build the XLSX and PDF BEFORE writing long report text, so the files exist even if the run is cut short.
+
+      IF YOU ARE THE SECOND STAGE of this task: do NOT restart discovery. Verify and package the first stage's shortlist; fetch only to fill a specific gap (a missing email, phone or signal source).
+
+      CLAIMS DISCIPLINE: no invented clients, deployments, certifications, savings figures, or guaranteed third-party credits. Cost optimisation only as a target range (~20-40% where feasible).
+
+      HARD RULES: NEVER send anything — no emails, no DMs, no posts, no connection requests (gmail.draft is allowed for drafts only; gmail.send is FORBIDDEN for this task). Everything you produce is a draft for the owner's approval. If a source shows a CAPTCHA or a Cloudflare "Verify you are human" checkbox, skip that source and note it — never click it.
 skills:
   - campaign_plan
   - growth_report
