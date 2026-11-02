@@ -4,6 +4,7 @@ meetings, routines. Heavy lifting happens in the worker after `enqueue_task`."""
 from __future__ import annotations
 
 import logging
+from datetime import timedelta
 from typing import Any
 
 import httpx
@@ -13,7 +14,7 @@ from azzy.audit import record as audit_record
 from azzy.bus import Bus
 from azzy.config import Settings
 from azzy.db import repo
-from azzy.db.models import ApprovalRow, ChatMessageRow, IncidentRow, TaskRow
+from azzy.db.models import ApprovalRow, ChatMessageRow, IncidentRow, TaskRow, utcnow
 from azzy.events import (
     AGENT_IDS,
     TERMINAL_STATES,
@@ -31,6 +32,7 @@ log = logging.getLogger("azzy.orchestrator")
 
 MEETING_LOCK = "meeting"
 MEETING_LOCK_TTL = 120
+MEETING_STALE_MINUTES = 30
 CANCEL_TTL = 3600
 
 
@@ -170,9 +172,28 @@ async def resolve_incident(session: AsyncSession, bus: Bus, incident_id: str, by
 
 
 async def call_meeting(session: AsyncSession, bus: Bus, topic: str | None, by: str = "system") -> TaskRow | None:
-    """Returns None when a meeting is already running (caller maps to 409)."""
-    if await repo.active_meeting_task(session) is not None:
-        return None
+    """Returns None when a meeting is already running (caller maps to 409).
+
+    A meeting left non-terminal for over MEETING_STALE_MINUTES is stale —
+    typically parked in a human-waiting pipeline state (needs_qa / needs_review)
+    that nobody will ever advance. It is cancelled so that calling a fresh
+    meeting works instead of 409-ing forever.
+    """
+    active = await repo.active_meeting_task(session)
+    if active is not None:
+        now = utcnow()
+        created = active.created_at
+        if created.tzinfo is None:
+            created = created.replace(tzinfo=now.tzinfo)
+        if now - created <= timedelta(minutes=MEETING_STALE_MINUTES):
+            return None
+        stale_state = active.state
+        stale = await repo.update_task(session, active.id, state="cancelled")
+        await audit_record(bus, actor=by, action="meeting.auto_cancelled", target=active.id, task_id=active.id, detail={"was_state": stale_state}, session=session)
+        await session.commit()
+        if stale is not None:
+            await bus.publish(TaskUpdatedEvent(task=repo.task_to_model(stale)))
+        log.info("auto-cancelled stale meeting task %s (was %s)", active.id, stale_state)
     if not await bus.acquire_lock(MEETING_LOCK, MEETING_LOCK_TTL):
         return None
     topic = (topic or "Team sync").strip()

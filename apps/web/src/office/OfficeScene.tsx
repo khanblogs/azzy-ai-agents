@@ -77,7 +77,7 @@ function EnvironmentLighting() {
       <Suspense fallback={null}>
         <Environment resolution={256} frames={1}>
           <group>
-            <Lightformer form="rect" intensity={2.2} color="#dbeafe" position={[0, 5, 0]} rotation={[Math.PI / 2, 0, 0]} scale={[8, 8, 1]} />
+            <Lightformer form="rect" intensity={1.6} color="#dbeafe" position={[0, 5, 0]} rotation={[Math.PI / 2, 0, 0]} scale={[8, 8, 1]} />
             <Lightformer form="rect" intensity={1.6} color="#00E5FF" position={[-5, 2, 0]} rotation={[0, Math.PI / 2, 0]} scale={[6, 2, 1]} />
             <Lightformer form="rect" intensity={1.6} color="#9747FF" position={[5, 2, 0]} rotation={[0, -Math.PI / 2, 0]} scale={[6, 2, 1]} />
             <Lightformer form="rect" intensity={0.7} color="#f5f3ff" position={[0, 2, 6]} rotation={[0, Math.PI, 0]} scale={[7, 3, 1]} />
@@ -96,7 +96,7 @@ function Effects() {
   return (
     <EffectComposer multisampling={0}>
       <>
-        <Bloom mipmapBlur intensity={0.55} luminanceThreshold={0.55} luminanceSmoothing={0.25} />
+        <Bloom mipmapBlur intensity={0.45} luminanceThreshold={0.72} luminanceSmoothing={0.25} />
         <Vignette offset={0.22} darkness={0.62} />
       </>
     </EffectComposer>

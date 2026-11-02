@@ -19,7 +19,7 @@ export function Floor({ reflective }: { reflective: boolean }) {
           blur={[300, 80]}
           resolution={512}
           mixBlur={0.9}
-          mixStrength={14}
+          mixStrength={9}
           roughness={0.9}
           depthScale={1.1}
           minDepthThreshold={0.4}
@@ -117,7 +117,7 @@ export function Walls() {
           <group key={`${x}-${z}`} position={[x, H - 0.03, z]}>
             <mesh rotation={[Math.PI / 2, 0, 0]}>
               <planeGeometry args={[2.4, 1.2]} />
-              <meshStandardMaterial color="#f8fafc" emissive="#dbeafe" emissiveIntensity={1.6} toneMapped={false} />
+              <meshStandardMaterial color="#f8fafc" emissive="#dbeafe" emissiveIntensity={1.15} toneMapped={false} />
             </mesh>
           </group>
         )),
