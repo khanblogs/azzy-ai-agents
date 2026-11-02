@@ -65,7 +65,7 @@ export function TasksBoard() {
   const active = tasks.filter((t) => !PIPELINE_TERMINAL.includes(t.state)).length;
 
   return (
-    <div>
+    <div className="w-full min-w-0">
       <PageHeader title="Tasks" subtitle={`${active} active · ${tasks.length} total · needs_work → needs_review → needs_qa → needs_docs → ready → needs_human → done`} />
       {!hydrated && tasks.length === 0 ? (
         <div className="grid gap-3 md:grid-cols-4">
@@ -74,11 +74,11 @@ export function TasksBoard() {
           ))}
         </div>
       ) : (
-        <div className="snap-x-cols -mx-4 flex gap-3 overflow-x-auto px-4 pb-3 md:mx-0 md:px-0" role="list" aria-label="Pipeline columns">
+        <div className="snap-x-cols flex flex-col gap-3 pb-3 md:flex-row md:overflow-x-auto" role="list" aria-label="Pipeline columns">
           {columns.map((state) => {
             const items = byState.get(state) ?? [];
             return (
-              <section key={state} role="listitem" data-testid={`pipeline-column-${state}`} className="flex w-[82vw] shrink-0 flex-col rounded-2xl border border-line bg-black/20 sm:w-72 md:w-64 lg:w-[calc((100%-6*0.75rem)/7)] lg:min-w-[13rem]">
+              <section key={state} role="listitem" data-testid={`pipeline-column-${state}`} className="flex w-full shrink-0 flex-col rounded-2xl border border-line bg-black/20 md:w-64 lg:w-[calc((100%-6*0.75rem)/7)] lg:min-w-[13rem]">
                 <header className="flex items-center justify-between border-b border-line px-3 py-2">
                   <h2 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-slate-200">
                     <span className="h-2 w-2 rounded-full" style={{ backgroundColor: PIPELINE_ACCENTS[state] }} aria-hidden />
@@ -88,7 +88,7 @@ export function TasksBoard() {
                     {items.length}
                   </span>
                 </header>
-                <div className="flex max-h-[70svh] flex-col gap-2 overflow-y-auto p-2">
+                <div className={items.length === 0 ? "hidden flex-col gap-2 p-2 md:flex md:max-h-[70svh] md:overflow-y-auto" : "flex flex-col gap-2 p-2 md:max-h-[70svh] md:overflow-y-auto"}>
                   {items.length === 0 ? <p className="px-2 py-6 text-center text-[11px] text-slate-600">Nothing here</p> : items.map((t) => <TaskCard key={t.id} task={t} now={now} onOpen={setOpenId} />)}
                 </div>
               </section>

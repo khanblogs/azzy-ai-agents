@@ -116,7 +116,7 @@ export function AgentMessageList({ messages, emptyHint }: { messages: AgentMessa
               {m.status} · {clock(m.created_at)}
             </span>
           </div>
-          <p className="mt-1.5 text-slate-100">{m.content}</p>
+          <p className="mt-1.5 line-clamp-4 break-words text-slate-100">{m.content}</p>
           {m.artifacts.length > 0 ? (
             <ul className="mt-1.5 flex flex-wrap gap-1">
               {m.artifacts.map((a, i) => (

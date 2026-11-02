@@ -14,10 +14,11 @@ _CATALOG: tuple[tuple[str, str, str], ...] = (
     ("github", "GitHub", "scm"), ("gitlab", "GitLab", "scm"), ("jenkins", "Jenkins", "ci"), ("slack", "Slack", "comms"),
     ("gmail", "Gmail", "comms"), ("gcal", "Google Calendar", "comms"), ("zendesk", "Zendesk", "support"),
     ("bedrock", "Amazon Bedrock", "llm"), ("anthropic", "Anthropic", "llm"), ("openai", "OpenAI", "llm"),
+    ("omniroute", "OmniRoute", "llm"), ("freellmapi", "FreeLLMAPI", "llm"),
     ("tailscale", "Tailscale", "connectivity"), ("ssm", "AWS Systems Manager", "connectivity"),
     ("semgrep", "Semgrep", "scanner"), ("gitleaks", "Gitleaks", "scanner"), ("trivy", "Trivy", "scanner"),
     ("checkov", "Checkov", "scanner"), ("nuclei", "Nuclei", "scanner"), ("zap", "OWASP ZAP", "scanner"),
-    ("playwright", "Playwright", "testing"),
+    ("playwright", "Playwright", "testing"), ("obscura", "Obscura", "web"),
 )
 
 
@@ -42,6 +43,12 @@ def _configured(integration_id: str, settings: Settings) -> tuple[bool, str]:
             return bool(env.get("ANTHROPIC_API_KEY")), "ANTHROPIC_API_KEY (fallback)"
         case "openai":
             return bool(env.get("OPENAI_API_KEY")), "OPENAI_API_KEY (fallback)"
+        case "omniroute":
+            return bool(env.get("OPENAI_API_BASE")), "OPENAI_API_BASE (OmniRoute fallback gateway)"
+        case "freellmapi":
+            return bool(env.get("FREELLMAPI_URL")), "FREELLMAPI_URL (free-tier provider pool via OmniRoute)"
+        case "obscura":
+            return bool(shutil.which("obscura")), "obscura binary (web.fetch / web.scrape / web.screenshot)"
         case "tailscale":
             return bool(shutil.which("ssh")), "ssh client + tag:servers ACL"
         case "ssm":
@@ -84,6 +91,14 @@ async def test_integration(integration_id: str, settings: Settings) -> dict[str,
                 headers = {"x-api-key": os.environ["ANTHROPIC_API_KEY"], "anthropic-version": "2023-06-01"} if integration_id == "anthropic" else {"Authorization": f"Bearer {os.environ['OPENAI_API_KEY']}"}
                 resp = await client.get(url, headers=headers)
                 return {"ok": resp.status_code == 200, "demo": False, "detail": f"HTTP {resp.status_code}"}
+            if integration_id == "omniroute":
+                base = os.environ.get("OPENAI_API_BASE", "").rstrip("/")
+                resp = await client.get(f"{base}/models", headers={"Authorization": f"Bearer {os.environ.get('OPENAI_API_KEY', '')}"})
+                return {"ok": resp.status_code == 200, "demo": False, "detail": f"OmniRoute /models HTTP {resp.status_code}"}
+            if integration_id == "freellmapi":
+                base = os.environ.get("FREELLMAPI_URL", "").rstrip("/")
+                resp = await client.get(f"{base}/api/ping")
+                return {"ok": resp.status_code == 200, "demo": False, "detail": f"FreeLLMAPI /api/ping HTTP {resp.status_code}"}
     except httpx.HTTPError as exc:
         return {"ok": False, "demo": False, "detail": f"network error: {type(exc).__name__}"}
     if integration_id == "bedrock":

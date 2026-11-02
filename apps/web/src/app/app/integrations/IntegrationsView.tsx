@@ -11,7 +11,7 @@ import { api, ApiError } from "@/lib/api";
 import type { Integration } from "@/lib/types";
 import { can, useAzzy } from "@/store/useAzzy";
 
-const CATEGORY_ORDER = ["source control", "ci/cd", "messaging", "productivity", "support", "llm", "network", "aws", "scanners", "testing"];
+const CATEGORY_ORDER = ["llm", "scm", "ci", "comms", "connectivity", "scanner", "testing", "web", "support"];
 
 function IntegrationCard({ it }: { it: Integration }) {
   const me = useAzzy((s) => s.me);
@@ -88,7 +88,7 @@ export function IntegrationsView() {
           ))}
         </div>
       ) : list.length === 0 ? (
-        <EmptyState title="No integrations reported" hint="The API lists github, gitlab, jenkins, slack, gmail, gcal, zendesk, bedrock, anthropic, openai, tailscale, ssm and the scanners." />
+        <EmptyState title="No integrations reported" hint="The API lists github, gitlab, jenkins, slack, gmail, gcal, zendesk, bedrock, omniroute, freellmapi, anthropic, openai, tailscale, ssm, obscura and the scanners." />
       ) : (
         groups.map(([cat, items]) => (
           <section key={cat} className="mb-6" aria-labelledby={`cat-${cat}`}>

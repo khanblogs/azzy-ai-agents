@@ -29,6 +29,22 @@ function useLowPower() {
   return low;
 }
 
+/** Portrait screens crop the office horizontally at the desktop FOV, so widen
+ *  the vertical FOV on narrow viewports to keep the whole room in frame.
+ *  Desktop (aspect >= 1) keeps the original 50° framing untouched. */
+function PortraitFov() {
+  const camera = useThree((s) => s.camera);
+  const size = useThree((s) => s.size);
+  useEffect(() => {
+    const persp = camera as { fov?: number; updateProjectionMatrix?: () => void };
+    if (typeof persp.fov !== "number" || !persp.updateProjectionMatrix) return;
+    const aspect = size.width / Math.max(1, size.height);
+    persp.fov = aspect >= 1 ? 50 : Math.min(85, 50 / Math.max(aspect, 0.55));
+    persp.updateProjectionMatrix();
+  }, [camera, size]);
+  return null;
+}
+
 function usePageHidden() {
   const [hidden, setHidden] = useState(false);
   useEffect(() => {
@@ -199,6 +215,7 @@ export function OfficeScene({ liveEdges }: { liveEdges: CollaborationEdge[] }) {
       }}
     >
       <PerformanceMonitor onDecline={() => setQuality("low")} onIncline={() => setQuality("high")} />
+      <PortraitFov />
       <color attach="background" args={["#050816"]} />
       <fog attach="fog" args={["#050816", 26, 50]} />
 
