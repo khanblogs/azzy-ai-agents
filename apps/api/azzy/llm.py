@@ -62,6 +62,7 @@ class LLM(Protocol):
         tools: list[dict[str, Any]],
         *,
         task_id: str | None = None,
+        model: str | None = None,
     ) -> LLMResult: ...
 
 
@@ -157,6 +158,7 @@ class StubLLM:
         tools: list[dict[str, Any]],
         *,
         task_id: str | None = None,
+        model: str | None = None,
     ) -> LLMResult:
         ctx = read_context(messages)
         ctx.setdefault("agent", agent_id)
@@ -754,12 +756,18 @@ class LiteLLMGateway:
         tools: list[dict[str, Any]],
         *,
         task_id: str | None = None,
+        model: str | None = None,
     ) -> LLMResult:
         import litellm  # imported lazily: not needed in DEMO / tests
 
         budget = self._check_budget(agent_id, task_id)
-        model = budget.model or self._default_model or "bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0"
-        chain = [model, *self._fallbacks()]
+        agent_model = budget.model or self._default_model or "bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0"
+        if model:
+            # Caller-requested model first (e.g. meeting lines), the agent's own
+            # pinned model stays in the chain as the fallback.
+            chain = list(dict.fromkeys([model, agent_model, *self._fallbacks()]))
+        else:
+            chain = [agent_model, *self._fallbacks()]
         cleaned = _to_openai_messages(messages)
         tool_specs = [
             {"type": "function", "function": {"name": t["name"], "description": t.get("description", ""), "parameters": t.get("parameters", {"type": "object", "properties": {}})}}

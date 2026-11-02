@@ -72,6 +72,43 @@ INCIDENT_SIDE_MEMBERS: tuple[str, ...] = ("emir", "cyber", "sara")
 
 _MEMORY_KINDS = {"fact", "lesson", "skill_proposal"}
 
+# Phrases that mean the model slipped out of its agent persona and started
+# asserting its underlying nature ("I'm Claude 4.5 Haiku, an AI assistant...").
+# Deliberately first-person/assertive forms only, so a good in-character line
+# that merely negates them ("I'm Jimmy, not an AI assistant") still passes.
+_CHARACTER_BREAK_PHRASES = (
+    "i'm claude",
+    "i am claude",
+    "claude haiku",
+    "claude 4.5",
+    "claude 4",
+    "claude 3",
+    "i'm an ai",
+    "i am an ai",
+    "i'm an ai assistant",
+    "i am an ai assistant",
+    "as a language model",
+    "i'm a language model",
+    "i am a language model",
+    "my training data",
+    "fictional character",
+    "roleplay",
+    "role-play",
+)
+
+
+def _breaks_character(text: str) -> bool:
+    lowered = text.lower()
+    return any(phrase in lowered for phrase in _CHARACTER_BREAK_PHRASES)
+
+
+# Meeting lines are tool-less, in-character speech. The agents' pinned model
+# (ddgw/claude-haiku-4-5) refuses persona adoption through DuckDuckGo and
+# answers with identity disclaimers, while ddgw/mistral-small-2603 stays in
+# character with concrete, per-agent updates (verified live 2026-11-03), so
+# meeting lines use it instead. Tool-driven work keeps the pinned model.
+MEETING_MODEL = "openai/ddgw/mistral-small-2603"
+
 
 def _parse_memory_lines(text: str) -> list[tuple[str, str]]:
     """Parse 'kind: text' lines from an LLM memory-extraction reply.
@@ -800,17 +837,57 @@ class AgentRunner:
 
     async def _meeting_line(self, ctx: TaskContext, stage: Stage) -> str:
         agent = self.agents[stage.agent]
+        topic = str(ctx.meta.get("topic") or "team sync")
+        # Ground the line in the agent's own latest work note so each agent
+        # reports on different work instead of producing the same generic line.
+        grounding = ""
+        try:
+            async with session_scope() as session:
+                recent = await self._recall_memories(session, agent.id, None)
+            notes = [str(m.get("text") or "").strip() for m in recent]
+            notes = [n for n in notes if n and not n.startswith("Meeting (")]
+            if notes:
+                grounding = f" Your most recent work note: {notes[0][:160]}"
+        except Exception:  # noqa: BLE001
+            grounding = ""
+        ask = (
+            f"Team meeting on: {topic}. Give your one-sentence status update (max 100 chars), "
+            f"spoken as {agent.name}: what you are working on right now, anything blocked, and "
+            f"anything you need from the team. Be concrete about your own work.{grounding}"
+        )
         messages = [
             {"role": "system", "content": agent.system_prompt},
             context_message(task_id=ctx.task_id, kind="meeting", stage="meeting", prompt=ctx.prompt, agent=agent.id, topic=ctx.meta.get("topic", "")),
-            {"role": "user", "content": f"Team meeting on: {ctx.meta.get('topic', 'team sync')}. Give your one-sentence status update (max 100 chars)."},
+            {"role": "user", "content": ask},
         ]
+        meeting_model = None if self.demo else MEETING_MODEL
         try:
-            result = await self.llm.complete(agent.id, messages, [], task_id=ctx.task_id)
+            result = await self.llm.complete(agent.id, messages, [], task_id=ctx.task_id, model=meeting_model)
         except BudgetExceeded:
             return "Over budget today — listening only."
         await self.record_cost(agent.id, ctx.task_id, result)
-        return result.text or "Nothing to report."
+        text = (result.text or "").replace("**", "").strip()
+        if text and _breaks_character(text):
+            # The model slipped out of persona and asserted its underlying nature
+            # instead of reporting as the agent. Retry FRESH (showing it the bad
+            # line only anchors the disclaimer) with a firmer in-character ask;
+            # if it slips again, fall back to a plain in-character status line.
+            retry_ask = (
+                f"You are {agent.name}, the {agent.role} at AZZY AI AGENTS, in a team meeting on: {topic}. "
+                "Give ONLY your one-sentence status update (max 100 chars) about your own work - "
+                f"what is moving, what is blocked. Speak as yourself; do not discuss your nature.{grounding}"
+            )
+            retry = [messages[0], messages[1], {"role": "user", "content": retry_ask}]
+            try:
+                result2 = await self.llm.complete(agent.id, retry, [], task_id=ctx.task_id, model=meeting_model)
+                await self.record_cost(agent.id, ctx.task_id, result2)
+                text2 = (result2.text or "").replace("**", "").strip()
+                if text2 and not _breaks_character(text2):
+                    return text2[:240]
+            except BudgetExceeded:
+                pass
+            return f"{topic}: on track, nothing blocked on my side."
+        return text[:240] or "Nothing to report."
 
     # ---- incident war room -----------------------------------------------------------------
 
