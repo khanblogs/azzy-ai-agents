@@ -121,13 +121,13 @@ export function CommandCenter() {
       </div>
 
       {!hydrated ? (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 [&>*]:min-w-0">
           {[0, 1, 2, 3].map((i) => (
             <Skeleton key={i} className="h-24" />
           ))}
         </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 [&>*]:min-w-0">
           <Kpi label="Active tasks" value={active.length} hint={`${doneToday} done today`} color="#00E5FF" spark={taskSpark} href="/app/tasks" />
           <Kpi label="Pending approvals" value={pending.length} hint={pending[0] ? `oldest ${relTime(pending[0].created_at, now)}` : "nothing waiting"} color={pending.length ? "#F04DFF" : "#9747FF"} href="/app/approvals" />
           <Kpi label="Spend today" value={costs.today_usd} format={(n) => usd(n)} hint={`${Math.round(budgetPct)}% of ${usd(costs.budget_usd, 0)} budget`} color="#FFB547" spark={spark} href="/app/monitoring" />
@@ -135,7 +135,7 @@ export function CommandCenter() {
         </div>
       )}
 
-      <div className="mt-4 grid gap-4 xl:grid-cols-3">
+      <div className="mt-4 grid gap-4 xl:grid-cols-3 [&>*]:min-w-0">
         <Card className="xl:col-span-2">
           <CardHeader title="Agents" subtitle="live phase, spot and spend" action={<Link href="/app/office" className="text-xs text-brand-cyan hover:underline">Open 3D office →</Link>} />
           <ul className="grid gap-2 px-3 pb-3 sm:grid-cols-2 lg:grid-cols-5">
@@ -182,7 +182,7 @@ export function CommandCenter() {
         </Card>
       </div>
 
-      <div className="mt-4 grid gap-4 xl:grid-cols-3">
+      <div className="mt-4 grid gap-4 xl:grid-cols-3 [&>*]:min-w-0">
         <Card>
           <CardHeader title="Active tasks" subtitle="pipeline in motion" action={<Link href="/app/tasks" className="text-xs text-brand-cyan hover:underline">Board →</Link>} />
           <ul className="divide-y divide-line px-4 pb-3 text-xs">

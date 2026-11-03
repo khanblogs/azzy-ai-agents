@@ -37,7 +37,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
           </nav>
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <Link href={hasSession ? "/app" : "/login"} className="inline-flex h-9 items-center rounded-xl bg-brand-cyan px-4 text-sm font-semibold text-navy shadow-glow hover:brightness-110" data-testid="cta-login">
+            <Link href={hasSession ? "/app" : "/login"} className="inline-flex h-9 shrink-0 items-center whitespace-nowrap rounded-xl bg-brand-cyan px-3 text-sm font-semibold text-navy shadow-glow hover:brightness-110 sm:px-4" data-testid="cta-login">
               {hasSession ? "Open portal" : "Sign in"}
             </Link>
             <button type="button" className="rounded-lg p-2 text-slate-300 md:hidden" aria-label={open ? "Close menu" : "Open menu"} aria-expanded={open} onClick={() => setOpen((v) => !v)}>

@@ -27,3 +27,5 @@ pytest==8.3.4
 pytest-asyncio==0.25.0
 onnxruntime==1.20.1
 tokenizers==0.21.0
+mem0ai[nlp]==2.2.1
+psycopg[binary,pool]==3.3.6

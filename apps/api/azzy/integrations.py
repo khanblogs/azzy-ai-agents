@@ -19,6 +19,9 @@ _CATALOG: tuple[tuple[str, str, str], ...] = (
     ("semgrep", "Semgrep", "scanner"), ("gitleaks", "Gitleaks", "scanner"), ("trivy", "Trivy", "scanner"),
     ("checkov", "Checkov", "scanner"), ("nuclei", "Nuclei", "scanner"), ("zap", "OWASP ZAP", "scanner"),
     ("playwright", "Playwright", "testing"), ("obscura", "Obscura", "web"),
+    ("crawl4ai", "Crawl4AI", "web"), ("healthchecks", "Healthchecks", "monitoring"),
+    ("uptime-kuma", "Uptime Kuma", "monitoring"), ("umami", "Umami Analytics", "analytics"),
+    ("mem0", "Mem0 Memory", "memory"),
 )
 
 
@@ -49,6 +52,16 @@ def _configured(integration_id: str, settings: Settings) -> tuple[bool, str]:
             return bool(env.get("FREELLMAPI_URL")), "FREELLMAPI_URL (free-tier provider pool via OmniRoute)"
         case "obscura":
             return bool(shutil.which("obscura")), "obscura binary (web.fetch / web.scrape / web.screenshot)"
+        case "crawl4ai":
+            return bool(env.get("CRAWL4AI_URL")), "CRAWL4AI_URL (web.extract engine)"
+        case "healthchecks":
+            return bool(env.get("HEALTHCHECKS_URL")), "HEALTHCHECKS_URL (cron/routine watchdog)"
+        case "uptime-kuma":
+            return bool(env.get("UPTIME_KUMA_URL")), "UPTIME_KUMA_URL (service uptime monitoring)"
+        case "umami":
+            return bool(env.get("UMAMI_URL")), "UMAMI_URL (privacy-friendly analytics)"
+        case "mem0":
+            return env.get("MEM0_ENABLED") == "1", "MEM0_ENABLED (long-term agent memory: pgvector + Bedrock)"
         case "tailscale":
             return bool(shutil.which("ssh")), "ssh client + tag:servers ACL"
         case "ssm":
@@ -99,8 +112,40 @@ async def test_integration(integration_id: str, settings: Settings) -> dict[str,
                 base = os.environ.get("FREELLMAPI_URL", "").rstrip("/")
                 resp = await client.get(f"{base}/api/ping")
                 return {"ok": resp.status_code == 200, "demo": False, "detail": f"FreeLLMAPI /api/ping HTTP {resp.status_code}"}
+            if integration_id == "healthchecks":
+                base = os.environ.get("HEALTHCHECKS_URL", "").rstrip("/")
+                resp = await client.get(f"{base}/hc/accounts/login/", follow_redirects=True)
+                return {"ok": resp.status_code == 200, "demo": False, "detail": f"Healthchecks login HTTP {resp.status_code}"}
+            if integration_id == "uptime-kuma":
+                base = os.environ.get("UPTIME_KUMA_URL", "").rstrip("/")
+                resp = await client.get(f"{base}/api/status-page/azzy")
+                return {"ok": resp.status_code == 200, "demo": False, "detail": f"Uptime Kuma status-page HTTP {resp.status_code}"}
+            if integration_id == "umami":
+                base = os.environ.get("UMAMI_URL", "").rstrip("/")
+                resp = await client.get(f"{base}/api/heartbeat")
+                return {"ok": resp.status_code == 200, "demo": False, "detail": f"Umami heartbeat HTTP {resp.status_code}"}
+            if integration_id == "crawl4ai":
+                base = os.environ.get("CRAWL4AI_URL", "").rstrip("/")
+                token = os.environ.get("CRAWL4AI_API_TOKEN", "")
+                resp = await client.get(f"{base}/health", headers={"Authorization": f"Bearer {token}"} if token else {})
+                return {"ok": resp.status_code == 200, "demo": False, "detail": f"Crawl4AI /health HTTP {resp.status_code}"}
     except httpx.HTTPError as exc:
         return {"ok": False, "demo": False, "detail": f"network error: {type(exc).__name__}"}
+    if integration_id == "mem0":
+        try:
+            import mem0  # noqa: F401, PLC0415
+            import psycopg  # noqa: PLC0415
+
+            from azzy.memory_ext import _pg_config  # noqa: PLC0415
+
+            cfg = _pg_config()
+            conninfo = f"host={cfg['host']} port={cfg['port']} dbname={cfg['dbname']} user={cfg['user']} password={cfg['password']}"
+            with psycopg.connect(conninfo, connect_timeout=5) as conn, conn.cursor() as cur:
+                cur.execute("SELECT count(*) FROM azzy_memories")
+                count = cur.fetchone()[0]
+            return {"ok": True, "demo": False, "detail": f"mem0 pgvector reachable ({count} memories)"}
+        except Exception as exc:  # noqa: BLE001
+            return {"ok": False, "demo": False, "detail": f"{type(exc).__name__}"}
     if integration_id == "bedrock":
         try:
             import boto3  # noqa: PLC0415

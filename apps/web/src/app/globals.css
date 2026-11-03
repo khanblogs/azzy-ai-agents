@@ -268,3 +268,8 @@ html[data-theme="light"] input::placeholder,
 html[data-theme="light"] textarea::placeholder {
   color: #94a3b8;
 }
+
+/* Mobile: 3D name tags scale huge in portrait and collide with the HUD - the roster below names every agent. */
+@media (max-width: 767px) {
+  .office-tag { display: none !important; }
+}

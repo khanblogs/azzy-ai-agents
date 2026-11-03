@@ -123,7 +123,7 @@ export function AgentProfile({ id }: { id: AgentId }) {
               {avatar.hair !== "none" ? ` · ${avatar.hair}` : ""}
             </p>
           </div>
-          <dl className="grid grid-cols-2 gap-2 text-center text-xs sm:grid-cols-4">
+          <dl className="grid w-full grid-cols-2 gap-2 text-center text-xs sm:grid-cols-4 lg:w-auto">
             {[
               ["XP", String(a.xp)],
               ["Tasks done", String(a.tasks_done)],
@@ -148,10 +148,10 @@ export function AgentProfile({ id }: { id: AgentId }) {
       </header>
 
       <div className="grid gap-4 lg:grid-cols-5">
-        <section className="lg:col-span-3" aria-label={`Chat with ${meta.name}`}>
+        <section className="min-w-0 lg:col-span-3" aria-label={`Chat with ${meta.name}`}>
           <AgentChat agent={id} />
         </section>
-        <div className="space-y-4 lg:col-span-2">
+        <div className="min-w-0 space-y-4 lg:col-span-2">
           <Card>
             <CardHeader title="Configuration" subtitle={detail ? `${detail.config.tools.length} tools · ${detail.config.skills.length} skills · ${detail.config.routines.length} routines` : "loading…"} />
             <div className="px-4 pb-4">

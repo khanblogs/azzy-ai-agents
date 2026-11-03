@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import type { ReactNode } from "react";
 import { CREATOR_CREDIT, PRODUCT_NAME, PRODUCT_VERSION } from "@azzy/events";
 import { Toasts } from "@/components/Toasts";
@@ -35,6 +36,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className="dark" data-theme="dark" suppressHydrationWarning>
       <body className="font-sans">
+        <Script src="/analytics/script.js" data-website-id="2f6a91f5-cfd2-4138-983d-c568a28dcf5c" strategy="afterInteractive" />
         <script
           dangerouslySetInnerHTML={{
             __html: "try{var t=localStorage.getItem('azzy-theme');document.documentElement.dataset.theme=(t==='light'||t==='dark')?t:'dark';}catch(e){document.documentElement.dataset.theme='dark';}",

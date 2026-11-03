@@ -29,22 +29,41 @@ interface Finding {
   ok: boolean;
 }
 
-/** Parses scanner output lines like "[HIGH] CVE-2024-1234 in openssl …" or "critical: …" into findings. */
-function extractFindings(logs: ToolLog[]): Finding[] {
-  const out: Finding[] = [];
+/** Extracts findings + severity totals from scanner output.
+ * Structured severity counts (JSON `"critical": 3`) are totals, never findings by
+ * themselves — a `"critical": 0` line must not count as a critical finding.
+ * Free-text lines like "[HIGH] CVE-2024-1234 in openssl …" count one each. */
+function extractFindings(logs: ToolLog[]): { findings: Finding[]; counts: Record<Sev, number> } {
+  const findings: Finding[] = [];
+  const counts: Record<Sev, number> = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
   for (const l of logs) {
     if (!SCAN_TOOLS.includes(l.tool)) continue;
-    const lines = l.output.split(/\r?\n/);
+    const summarised = new Set<Sev>();
+    for (const m of l.output.matchAll(/"(critical|high|medium|low|info)"\s*:\s*(\d+)/gi)) {
+      const sev = m[1].toLowerCase() as Sev;
+      const n = parseInt(m[2], 10);
+      if (n <= 0) continue;
+      counts[sev] += n;
+      if (!summarised.has(sev)) {
+        summarised.add(sev);
+        findings.push({ id: `${l.id}-sum-${sev}`, tool: l.tool, severity: sev, text: `Scan summary: ${n} ${sev} issue(s) reported`, ts: l.ts, ok: l.ok });
+      }
+    }
     let i = 0;
-    for (const line of lines) {
+    for (const line of l.output.split(/\r?\n/)) {
+      if (/"(critical|high|medium|low|info)"\s*:/i.test(line)) continue;
+      if (/^\s*(critical|high|medium|low|info)\s*:\s*\d+\s*,?\s*$/i.test(line)) continue;
+      if (/\b0\s+(critical|high|medium|low)\b/i.test(line) || /no\s+(critical|high|medium|low)/i.test(line)) continue;
       const m = /\b(critical|high|medium|low|info)\b/i.exec(line);
       if (!m) continue;
-      if (/\b0\s+(critical|high|medium|low)\b/i.test(line) || /no\s+(critical|high|medium|low)/i.test(line)) continue;
-      out.push({ id: `${l.id}-${i++}`, tool: l.tool, severity: m[1].toLowerCase() as Sev, text: line.trim().slice(0, 200), ts: l.ts, ok: l.ok });
+      const sev = m[1].toLowerCase() as Sev;
+      counts[sev] += 1;
+      findings.push({ id: `${l.id}-${i++}`, tool: l.tool, severity: sev, text: line.trim().slice(0, 200), ts: l.ts, ok: l.ok });
       if (i >= 6) break;
     }
   }
-  return out.sort((a, b) => SEV_ORDER.indexOf(a.severity) - SEV_ORDER.indexOf(b.severity) || Date.parse(b.ts) - Date.parse(a.ts)).slice(0, 40);
+  findings.sort((a, b) => SEV_ORDER.indexOf(a.severity) - SEV_ORDER.indexOf(b.severity) || Date.parse(b.ts) - Date.parse(a.ts));
+  return { findings: findings.slice(0, 40), counts };
 }
 
 export function SecurityView() {
@@ -80,12 +99,7 @@ export function SecurityView() {
   }, [history, liveLogs]);
 
   const scans = useMemo(() => logs.filter((l) => SCAN_TOOLS.includes(l.tool)), [logs]);
-  const findings = useMemo(() => extractFindings(scans), [scans]);
-  const counts = useMemo(() => {
-    const c: Record<Sev, number> = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
-    for (const f of findings) c[f.severity] += 1;
-    return c;
-  }, [findings]);
+  const { findings, counts } = useMemo(() => extractFindings(scans), [scans]);
   const lastScanByTool = useMemo(() => {
     const m = new Map<string, ToolLog>();
     for (const l of scans) if (!m.has(l.tool)) m.set(l.tool, l);

@@ -34,6 +34,8 @@ tool_defaults:
   web.fetch: low
   web.scrape: low
   web.screenshot: low
+  web.extract: low
+  uptime.status: low
   aws.deploy: medium
   aws.rollback: medium
   ssh.safe_action: medium
@@ -135,4 +137,6 @@ tool_allowlist:
   - web.fetch
   - web.scrape
   - web.screenshot
+  - web.extract
+  - uptime.status
   - memory.write

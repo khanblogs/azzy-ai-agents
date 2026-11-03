@@ -27,6 +27,7 @@ the LLM.
 from __future__ import annotations
 
 import asyncio
+import httpx
 import ipaddress
 import os
 import re
@@ -146,6 +147,39 @@ async def web_screenshot(ctx: ToolContext, args: dict[str, Any]) -> str:
     return f"web.screenshot {url}\nsaved: {path} ({path.stat().st_size} bytes)"
 
 
+async def web_extract(ctx: ToolContext, args: dict[str, Any]) -> str:
+    """JavaScript-heavy extraction via the Crawl4AI sidecar (internal service)."""
+    url = _check_url(str(args.get("url") or ""))
+    base = os.environ.get("CRAWL4AI_URL", "").rstrip("/")
+    if not base:
+        raise NotConfigured("Crawl4AI", "CRAWL4AI_URL is not set")
+    token = os.environ.get("CRAWL4AI_API_TOKEN", "")
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    try:
+        async with httpx.AsyncClient(timeout=120) as client:
+            resp = await client.post(base + "/crawl", json={"urls": [url]}, headers=headers)
+            resp.raise_for_status()
+            data = resp.json()
+    except ToolError:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        raise ToolError(f"crawl4ai request failed: {exc}") from None
+    results = data.get("results") or []
+    if not results:
+        raise ToolError(f"crawl4ai returned no result for {url}")
+    first = results[0]
+    if not first.get("success", True):
+        raise ToolError(f"crawl4ai failed for {url}: {str(first.get('error_message') or 'unknown error')[:300]}")
+    md = first.get("markdown") or ""
+    if isinstance(md, dict):
+        md = md.get("fit_markdown") or md.get("raw_markdown") or ""
+    md = str(md).strip()
+    if not md:
+        raise ToolError(f"crawl4ai extracted no readable content from {url}")
+    if len(md) > MAX_FETCH_CHARS:
+        md = md[:MAX_FETCH_CHARS] + "\n\n[truncated]"
+    return f"web.extract {url}\n\n{md}"
+
 SPECS: list[ToolSpec] = [
     ToolSpec(
         "web.fetch",
@@ -178,6 +212,14 @@ SPECS: list[ToolSpec] = [
         "low",
         schema({"url": str_prop("Public http(s) URL to capture")}, ["url"]),
         web_screenshot,
+        demo_passthrough=True,
+    ),
+    ToolSpec(
+        "web.extract",
+        "Extract the readable markdown of a JavaScript-heavy page with Crawl4AI (full browser rendering + content fitting). Prefer this over web.fetch for app-like or script-heavy pages. Read-only; public http/https only.",
+        "low",
+        schema({"url": str_prop("Public http(s) URL to extract")}, ["url"]),
+        web_extract,
         demo_passthrough=True,
     ),
 ]

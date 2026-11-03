@@ -111,8 +111,8 @@ function Wizard({ onCreated }: { onCreated: (a: AwsAccount) => void }) {
   };
 
   return (
-    <Card className="p-4" data-testid="account-wizard">
-      <div className="mb-3 flex items-center justify-between">
+    <Card className="min-w-0 p-4" data-testid="account-wizard">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-sm font-semibold text-white">Onboard an AWS account</h2>
         <ol className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-slate-500" aria-label="Wizard steps">
           {["Scope", "Role", "Verify"].map((s, i) => (
@@ -135,10 +135,10 @@ function Wizard({ onCreated }: { onCreated: (a: AwsAccount) => void }) {
                 data-testid={`account-scope-${s.key}`}
                 aria-pressed={scope === s.key}
                 onClick={() => setScope(s.key)}
-                className={clsx("rounded-xl border p-3 text-left transition", scope === s.key ? "border-brand-cyan/60 bg-brand-cyan/10 shadow-glow" : "border-line bg-black/20 hover:border-white/20")}
+                className={clsx("min-w-0 rounded-xl border p-3 text-left transition", scope === s.key ? "border-brand-cyan/60 bg-brand-cyan/10 shadow-glow" : "border-line bg-black/20 hover:border-white/20")}
               >
                 <div className="text-sm font-semibold text-white">{s.title}</div>
-                <div className="font-mono text-[10px] text-brand-cyan">{s.role}</div>
+                <div className="break-all font-mono text-[10px] text-brand-cyan">{s.role}</div>
                 <p className="mt-1 text-[11px] text-slate-400">{s.desc}</p>
                 <ul className="mt-2 space-y-0.5 text-[10px] text-slate-500">
                   {s.perms.map((p) => (
@@ -158,12 +158,12 @@ function Wizard({ onCreated }: { onCreated: (a: AwsAccount) => void }) {
 
       {step === 2 ? (
         <form onSubmit={submit} className="space-y-3">
-          <div className="rounded-xl border border-line bg-black/30 p-3">
+          <div className="min-w-0 rounded-xl border border-line bg-black/30 p-3">
             <div className="mb-2 flex items-center justify-between gap-2">
               <span className="text-xs font-semibold text-slate-200">1 · Create the role in the client account</span>
               <CopyButton text={snippet(scope, externalId)} label="Copy snippet" testId="copy-snippet" />
             </div>
-            <pre className="overflow-x-auto whitespace-pre-wrap font-mono text-[11px] leading-relaxed text-slate-300" data-testid="cf-snippet">
+            <pre className="max-w-full overflow-x-auto whitespace-pre-wrap font-mono text-[11px] leading-relaxed text-slate-300" data-testid="cf-snippet">
               {snippet(scope, externalId)}
             </pre>
             <p className="mt-2 text-[11px] text-slate-500">
@@ -372,10 +372,10 @@ export function AwsAccountsView() {
   const verified = accounts.filter((a) => a.status === "verified").length;
 
   return (
-    <div>
+    <div className="w-full min-w-0">
       <PageHeader title="AWS Accounts" subtitle={`${accounts.length} registered · ${verified} verified · cross-account access via AssumeRole + External ID, least-privilege by scope.`} />
       <div className="grid gap-4 lg:grid-cols-5">
-        <div className="lg:col-span-3">
+        <div className="min-w-0 lg:col-span-3">
           <Card>
             <CardHeader title="Registered accounts" subtitle="Status updates live on account.changed" />
             <div className="px-3 pb-3">
@@ -389,7 +389,7 @@ export function AwsAccountsView() {
             </div>
           </Card>
         </div>
-        <div className="lg:col-span-2">
+        <div className="min-w-0 lg:col-span-2">
           <Wizard onCreated={upsertAccount} />
         </div>
       </div>

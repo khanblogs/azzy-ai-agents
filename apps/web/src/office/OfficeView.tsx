@@ -93,17 +93,17 @@ function Hud() {
           <span className="capitalize">{office.status}</span>
           {office.note ? <span className="hidden max-w-[220px] truncate font-normal text-slate-300 sm:inline">· {office.note}</span> : null}
         </span>
-        <div className="pointer-events-auto flex flex-wrap items-center gap-2">
-          <Button size="sm" variant="primary" data-testid="call-meeting" aria-label="Call meeting" onClick={callMeeting} loading={busy === "meeting"} disabled={!writable} title={!writable ? "Read-only role" : undefined} icon={<IconBolt width={14} height={14} />}>
+        <div className="pointer-events-auto flex w-full flex-wrap items-center gap-2 sm:w-auto">
+          <Button className="flex-1 sm:flex-none" size="sm" variant="primary" data-testid="call-meeting" aria-label="Call meeting" onClick={callMeeting} loading={busy === "meeting"} disabled={!writable} title={!writable ? "Read-only role" : undefined} icon={<IconBolt width={14} height={14} />}>
             Call meeting
           </Button>
-          <Button size="sm" variant="danger" data-testid="simulate-incident" aria-label="Simulate incident" onClick={simulate} loading={busy === "incident"} disabled={!writable} title={!writable ? "Read-only role" : undefined}>
+          <Button className="flex-1 sm:flex-none" size="sm" variant="danger" data-testid="simulate-incident" aria-label="Simulate incident" onClick={simulate} loading={busy === "incident"} disabled={!writable} title={!writable ? "Read-only role" : undefined}>
             Simulate incident
           </Button>
-          <Button size="sm" variant="ghost" className="glass" aria-label="Look at the LED wall" onClick={() => requestFocus(null, "wall")} icon={<IconCamera width={14} height={14} />}>
+          <Button size="sm" variant="ghost" className="glass flex-1 sm:flex-none" aria-label="Look at the LED wall" onClick={() => requestFocus(null, "wall")} icon={<IconCamera width={14} height={14} />}>
             Wall
           </Button>
-          <Button size="sm" variant="ghost" className="glass" aria-label="Reset camera" onClick={() => { setMode("overview"); requestFocus(null, "reset"); }} icon={<IconRefresh width={14} height={14} />}>
+          <Button size="sm" variant="ghost" className="glass flex-1 sm:flex-none" aria-label="Reset camera" onClick={() => { setMode("overview"); requestFocus(null, "reset"); }} icon={<IconRefresh width={14} height={14} />}>
             Reset
           </Button>
         </div>

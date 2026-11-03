@@ -22,6 +22,7 @@ WORKDIR /app
 # Build context is the repo root (see infra/docker-compose.yml) so the shared agent YAMLs are available.
 COPY apps/api/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
+RUN python -m spacy download en_core_web_sm
 
 # Optional security scanners (WITH_SCANNERS=1 at build time; default image stays light).
 # semgrep + checkov come from PyPI; gitleaks + trivy are pinned GitHub releases (amd64).

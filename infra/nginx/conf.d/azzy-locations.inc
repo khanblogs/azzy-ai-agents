@@ -8,6 +8,8 @@
 resolver 127.0.0.11 valid=10s ipv6=off;
 set $api_upstream http://api:8000;
 set $web_upstream http://web:3000;
+set $hc_upstream http://healthchecks:8000;
+set $umami_upstream http://umami:3000;
 
 add_header X-Frame-Options SAMEORIGIN always;
 add_header X-Content-Type-Options nosniff always;
@@ -58,6 +60,41 @@ location = /healthz {
     access_log off;
 }
 
+# Healthchecks (cron/routine watchdog) under /hc — ping URLs must stay public
+# so external jobs (PBM ai-sync, lead engines) can report in. The app itself
+# is configured with SITE_ROOT=https://azzy.negdtech.in/hc and FORCE_SCRIPT_NAME=/hc.
+location /hc/ {
+    proxy_pass $hc_upstream;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Connection "";
+    proxy_read_timeout 60s;
+}
+
+# Umami analytics - only the tracker script and the collection endpoint are
+# public under /analytics; the dashboard stays internal (SSH tunnel).
+location = /analytics/script.js {
+    rewrite ^ /script.js break;
+    proxy_pass $umami_upstream;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+
+location = /analytics/api/send {
+    rewrite ^ /api/send break;
+    proxy_pass $umami_upstream;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
 # Next.js app (pages, static, PWA manifest, service worker). Upgrade headers
 # let the dev-only HMR socket through if someone points nginx at `next dev`.
 location / {

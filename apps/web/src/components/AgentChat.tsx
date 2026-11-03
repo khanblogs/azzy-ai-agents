@@ -27,7 +27,7 @@ function Bubble({ m, agent }: { m: ChatMessage; agent: AgentId }) {
   return (
     <li className={clsx("flex gap-2", mine ? "justify-end" : "justify-start")} data-testid={mine ? "chat-message-user" : m.role === "system" ? "chat-message-system" : "chat-message-agent"} data-streaming={m.streaming ? "true" : "false"}>
       {!mine ? <AgentAvatar id={agent} size={26} className="mt-1" /> : null}
-      <div className={clsx("max-w-[85%] rounded-2xl px-3 py-2 text-sm leading-relaxed shadow-glass", mine ? "rounded-br-md bg-brand-cyan/15 text-white ring-1 ring-brand-cyan/30" : m.role === "system" ? "bg-white/5 text-slate-400 italic" : "rounded-bl-md bg-midnight text-slate-100 ring-1 ring-white/10")}>
+      <div className={clsx("min-w-0 max-w-[85%] rounded-2xl px-3 py-2 text-sm leading-relaxed shadow-glass", mine ? "rounded-br-md bg-brand-cyan/15 text-white ring-1 ring-brand-cyan/30" : m.role === "system" ? "bg-white/5 text-slate-400 italic" : "rounded-bl-md bg-midnight text-slate-100 ring-1 ring-white/10")}>
         <p className="whitespace-pre-wrap break-words">
           {m.content}
           {m.streaming ? <span className="ml-0.5 inline-block h-3.5 w-1.5 animate-pulseDot align-middle" style={{ backgroundColor: color }} aria-label="typing" /> : null}

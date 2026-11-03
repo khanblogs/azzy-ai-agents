@@ -11,7 +11,7 @@ import { api, ApiError } from "@/lib/api";
 import type { Integration } from "@/lib/types";
 import { can, useAzzy } from "@/store/useAzzy";
 
-const CATEGORY_ORDER = ["llm", "scm", "ci", "comms", "connectivity", "scanner", "testing", "web", "support"];
+const CATEGORY_ORDER = ["llm", "scm", "ci", "comms", "connectivity", "scanner", "testing", "web", "monitoring", "analytics", "memory", "support"];
 
 function IntegrationCard({ it }: { it: Integration }) {
   const me = useAzzy((s) => s.me);

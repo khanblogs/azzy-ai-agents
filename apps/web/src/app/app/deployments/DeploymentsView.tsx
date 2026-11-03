@@ -46,33 +46,33 @@ function DeploymentRow({ d, now, expanded, onToggle }: { d: Deployment; now: num
   const color = DEPLOYMENT_COLORS[d.status];
   const active = ["running", "verifying", "awaiting_approval"].includes(d.status);
   return (
-    <li data-testid="deployment-row" data-deployment-id={d.id} className={clsx("rounded-xl border bg-black/20 p-3", active ? "border-brand-cyan/40" : "border-line")}>
+    <li data-testid="deployment-row" data-deployment-id={d.id} className={clsx("min-w-0 rounded-xl border bg-black/20 p-3", active ? "border-brand-cyan/40" : "border-line")}>
       <button type="button" onClick={onToggle} className="w-full text-left" aria-expanded={expanded} aria-label={`Toggle details for deployment ${d.version} to ${d.env_id}`}>
         <div className="flex flex-wrap items-center gap-2">
           <Pill color={color}>{d.status.replace(/_/g, " ")}</Pill>
           <span className="font-mono text-sm font-semibold text-white">{d.version}</span>
           {d.previous_version ? <span className="font-mono text-[11px] text-slate-500">from {d.previous_version}</span> : null}
-          <span className="rounded-md bg-white/5 px-1.5 py-0.5 font-mono text-[11px] text-slate-300">{d.env_id}</span>
+          <span className="max-w-full truncate rounded-md bg-white/5 px-1.5 py-0.5 font-mono text-[11px] text-slate-300">{d.env_id}</span>
           <RiskBadge risk={d.risk} />
           <AgentChip id={d.agent} link={false} />
           <span className="ml-auto text-[11px] text-slate-500">{relTime(d.created_at, now)}</span>
         </div>
         <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
           <StatusTrack status={d.status} />
-          <span className="truncate text-xs text-slate-400">{d.change_summary}</span>
+          <span className="min-w-0 flex-1 truncate text-xs text-slate-400">{d.change_summary}</span>
         </div>
       </button>
       {expanded ? (
-        <div className="mt-3 grid gap-3 border-t border-line pt-3 text-xs md:grid-cols-2">
+        <div className="mt-3 grid gap-3 border-t border-line pt-3 text-xs md:grid-cols-2 [&>*]:min-w-0">
           <div>
             <h4 className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Pre-checks</h4>
             {d.checks.length === 0 ? <p className="text-slate-500">No checks recorded yet.</p> : null}
             <ul className="space-y-1">
               {d.checks.map((c) => (
-                <li key={c.name} className="flex items-start gap-2">
+                <li key={c.name} className="flex min-w-0 items-start gap-2">
                   <span className={c.ok ? "text-emerald-400" : "text-rose-400"}>{c.ok ? "✓" : "✗"}</span>
                   <span className="text-slate-200">{c.name}</span>
-                  <span className="text-slate-500">{c.detail}</span>
+                  <span className="min-w-0 break-words text-slate-500">{c.detail}</span>
                 </li>
               ))}
             </ul>
@@ -83,7 +83,7 @@ function DeploymentRow({ d, now, expanded, onToggle }: { d: Deployment; now: num
             <dt className="text-slate-500">Finished</dt>
             <dd className="text-slate-200">{d.finished_at ? clock(d.finished_at) : "—"}</dd>
             <dt className="text-slate-500">Account</dt>
-            <dd className="font-mono text-slate-200">{d.account_id ?? "—"}</dd>
+            <dd className="break-all font-mono text-slate-200">{d.account_id ?? "—"}</dd>
             <dt className="text-slate-500">Task</dt>
             <dd>
               {d.task_id ? (
@@ -209,8 +209,8 @@ export function DeploymentsView() {
         <Stat label="Failed / rolled back" value={stats.bad} accent={stats.bad ? "#F04DFF" : undefined} />
         <Stat label="Success rate" value={stats.rate === null ? "—" : `${stats.rate}%`} hint="finished deployments" />
       </div>
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
+      <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
+        <Card className="min-w-0 lg:col-span-2">
           <CardHeader
             title="History"
             subtitle={`${list.length} shown · live on deployment.changed`}

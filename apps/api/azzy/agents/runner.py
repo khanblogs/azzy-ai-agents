@@ -504,6 +504,10 @@ class AgentRunner:
             except (json.JSONDecodeError, KeyError, TypeError):
                 continue
             ctx.memories.append({"agent": agent_id, "kind": kind, "text": text, "id": memory_id})
+            if not self.demo:
+                from azzy import memory_ext  # noqa: PLC0415
+
+                asyncio.ensure_future(memory_ext.add_memory(agent_id, kind, text))
             await self.emit(MemoryWrittenEvent(agent=agent_id, task_id=ctx.task_id, memory_id=memory_id, text=text, kind=kind))
             await self.award_xp(agent_id, XP_MEMORY)
             await self.pace(0.3, 0.6)
@@ -730,7 +734,11 @@ class AgentRunner:
         }
 
     async def _recall_memories(self, session: Any, agent_id: str, query: str | None) -> list[dict[str, Any]]:
-        """Semantic recall first (embeddings are stored on every memory); recency fallback."""
+        """Semantic recall first (embeddings are stored on every memory); recency fallback.
+
+        Mem0 hits (when MEM0_ENABLED) merge in as additive context - the native
+        store stays authoritative and always comes first."""
+        native: list[dict[str, Any]] = []
         if query:
             vector = None
             try:
@@ -742,8 +750,20 @@ class AgentRunner:
             if vector is not None:
                 rows = await repo.search_memories(session, agent=agent_id, embedding=vector, limit=5)
                 if rows:
-                    return [repo.memory_to_dict(m) for m in rows]
-        return [repo.memory_to_dict(m) for m in await repo.list_memories(session, agent=agent_id, limit=5)]
+                    native = [repo.memory_to_dict(m) for m in rows]
+        if not native:
+            native = [repo.memory_to_dict(m) for m in await repo.list_memories(session, agent=agent_id, limit=5)]
+        if query:
+            try:
+                from azzy import memory_ext  # noqa: PLC0415
+
+                seen = {m["text"] for m in native}
+                for text in await memory_ext.search_memories(agent_id, query, limit=3):
+                    if text not in seen:
+                        native.append({"id": "mem0", "agent": agent_id, "task_id": None, "kind": "mem0", "text": text, "created_at": None})
+            except Exception:  # noqa: BLE001
+                pass
+        return native
 
     async def run_chat(self, ctx: TaskContext) -> None:
         agent_id = ctx.lead

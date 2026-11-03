@@ -24,13 +24,13 @@ from azzy.agents.loader import AgentConfig
 from azzy.events import RiskLevel, ToolLogEvent, new_id
 from azzy.guard import scrub
 from azzy.policy import Env, Policy, get_policy
-from azzy.tools import accounts, aws, collab, comms, envreg, github, memory_tool, office, playwright_tool, sandbox, security, sql, ssh, web
+from azzy.tools import accounts, aws, collab, comms, envreg, github, memory_tool, office, playwright_tool, sandbox, security, sql, ssh, uptime, web
 from azzy.tools.base import NotConfigured, ToolContext, ToolError, ToolSpec
 from azzy.tools.demo_data import demo_latency_ms, demo_output
 
 log = logging.getLogger("azzy.tools")
 
-_MODULES = (envreg, accounts, aws, ssh, github, sandbox, sql, office, comms, security, playwright_tool, collab, memory_tool, web)
+_MODULES = (envreg, accounts, aws, ssh, github, sandbox, sql, office, comms, security, playwright_tool, collab, memory_tool, web, uptime)
 
 DEPLOY_TOOLS: frozenset[str] = frozenset({"aws.deploy", "aws.rollback"})
 
