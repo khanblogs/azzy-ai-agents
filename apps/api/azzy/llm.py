@@ -712,6 +712,33 @@ def _to_openai_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return out
 
 
+def _flatten_tool_history(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Flatten OpenAI tool-call history into plain text turns.
+
+    DuckDuckGo AI Chat (OmniRoute `openai/ddgw/*`) rejects native `tool`
+    messages and assistant `tool_calls` with ERR_BAD_REQUEST, which breaks
+    every multi-turn tool loop right after the first tool result. For those
+    models, past tool calls/results are restated as ordinary text; the model
+    can still emit fresh tool calls on the current turn.
+    """
+    out: list[dict[str, Any]] = []
+    for message in messages:
+        role = message.get("role")
+        if role == "tool":
+            name = message.get("name") or "tool"
+            out.append({"role": "user", "content": f"[Tool result - {name}]: {message.get('content', '')}"})
+        elif role == "assistant" and message.get("tool_calls"):
+            notes = []
+            for call in message["tool_calls"]:
+                fn = call.get("function") or {}
+                notes.append(f"[Called tool: {fn.get('name', 'tool')} with {fn.get('arguments') or '{}'}]")
+            content = str(message.get("content") or "")
+            out.append({"role": "assistant", "content": (content + "\n" + "\n".join(notes)).strip()})
+        else:
+            out.append(message)
+    return out
+
+
 class LiteLLMGateway:
     """Bedrock-first gateway with key-gated fallbacks and budget enforcement.
 
@@ -809,9 +836,10 @@ class LiteLLMGateway:
         last_error: Exception | None = None
         for candidate in chain:
             try:
+                attempt_messages = _flatten_tool_history(cleaned) if candidate.startswith("openai/ddgw/") else cleaned
                 kwargs: dict[str, Any] = {
                     "model": candidate,
-                    "messages": cleaned,
+                    "messages": attempt_messages,
                     "max_tokens": int(os.environ.get("LLM_MAX_TOKENS", "4096")),
                     "temperature": 0.2,
                     "timeout": 90,
