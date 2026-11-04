@@ -183,8 +183,8 @@ export function Plants() {
       <Plant position={[9, 0, -12]} variant={3} />
       <Plant position={[-4.3, 0, -12.5]} variant={1} scale={0.9} />
       <Plant position={[4.3, 0, -12.5]} variant={0} scale={0.9} />
-      <Plant position={[-13.6, 0, -6]} variant={3} scale={0.8} />
-      <Plant position={[13.6, 0, -6]} variant={2} scale={0.8} />
+      <Plant position={[-15.2, 0, -2.8]} variant={3} scale={0.8} />
+      <Plant position={[15.2, 0, -2.8]} variant={2} scale={0.8} />
     </group>
   );
 }

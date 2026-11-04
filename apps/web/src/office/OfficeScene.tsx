@@ -16,7 +16,7 @@ import { HoloScreen } from "./HoloScreen";
 import { Floor, FuelBar, LedFloorLines, Lounge, Plants, Walls } from "./Interior";
 import { CAMERA_DEFAULT, ROOM } from "./layout";
 import { LedWall } from "./LedWall";
-import { ServerRoom } from "./SetDressing";
+import { MeetingPod, ServerRoom, SunsetWindows } from "./SetDressing";
 import { OrchestrationTable } from "./OrchestrationTable";
 import { NameTag, SpeechBubble } from "./Overlays";
 
@@ -251,6 +251,8 @@ export function OfficeScene({ liveEdges }: { liveEdges: CollaborationEdge[] }) {
       <Lounge />
       <FuelBar />
       <ServerRoom alert={envAlert} />
+      <SunsetWindows />
+      <MeetingPod />
       <OrchestrationTable active={office === "meeting" || mode === "collaboration"} detail={!low} />
       <LedWall />
       <Agents />

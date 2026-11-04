@@ -22,6 +22,8 @@ export const TABLE_ANGLES: Record<AgentId, number> = { jimmy: 18, emir: 90, cybe
 export const BAR_CENTER: Vec3 = [12.5, 0, 4];
 /** Server-room corner: racks against the back wall, left side. */
 export const SERVER_CENTER: Vec3 = [-12.4, 0, -8.15];
+/** Glass meeting pod (decorative): back wall, right side — mirrors the server room. */
+export const POD_CENTER: Vec3 = [12.4, 0, -6.3];
 export const LOUNGE_CENTER: Vec3 = [-12.5, 0, 4];
 export const WALL_CENTER: Vec3 = [0, 3.7, -3.8];
 export const WALL_HALF_WIDTH = 10;
