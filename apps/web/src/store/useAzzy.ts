@@ -19,7 +19,7 @@ import {
   type UserRole,
 } from "@azzy/events";
 import { api, onForbidden, onRateLimited } from "@/lib/api";
-import type { AgentSummary, CostTick, Environment, Me, MemoryWritten, OfficeState, StateSnapshot, ToolLog, UpdateItem } from "@/lib/types";
+import type { AgentSummary, CostTick, Environment, Me, MemoryWritten, OfficeState, ServiceStatus, StateSnapshot, ToolLog, UpdateItem } from "@/lib/types";
 
 export type WsStatus = "connecting" | "connected" | "disconnected";
 
@@ -100,6 +100,7 @@ export interface AzzyState {
   updates: UpdateItem[];
   uptimeSeconds: number;
   uptimeAt: number;
+  services: ServiceStatus[];
   demo: boolean;
   ws: WsStatus;
   toasts: Toast[];
@@ -191,6 +192,7 @@ export const useAzzy = create<AzzyState>((set, get) => ({
   updates: [],
   uptimeSeconds: 0,
   uptimeAt: 0,
+  services: [],
   demo: false,
   ws: "connecting",
   toasts: [],
@@ -221,6 +223,7 @@ export const useAzzy = create<AzzyState>((set, get) => ({
         updates: snap.updates.slice(0, UPDATES_MAX),
         uptimeSeconds: snap.uptime_seconds,
         uptimeAt: Date.now(),
+        services: snap.services ?? s.services,
         demo: snap.demo,
       }));
     } catch (err) {

@@ -22,6 +22,7 @@ export interface WallSnapshot {
   tasksDone: number;
   topRank: string;
   uptimeSec: number;
+  services: { label: string; status: string; ping: number | null }[];
   updates: { agent: AgentId | null; text: string }[];
   pending: number;
   demo: boolean;
@@ -45,6 +46,7 @@ export function snapshotFromState(s: AzzyState): WallSnapshot {
     tasksDone: agents.reduce((n, a) => n + a.tasks_done, 0),
     topRank: top ? `${top.rank} · ${top.name.split(" ")[0]}` : "—",
     uptimeSec,
+    services: (s.services ?? []).map((sv) => ({ label: sv.label, status: sv.status, ping: sv.ping })),
     updates: s.updates.slice(0, 4),
     pending: s.approvals.filter((a) => a.status === "pending").length,
     demo: s.demo,
@@ -145,7 +147,12 @@ export function paintWall(ctx: CanvasRenderingContext2D, snap: WallSnapshot, now
   const statusColor = OFFICE_STATUS_COLORS[snap.status];
   let px = W / 2 - 160;
   px += pill(ctx, px, 52, snap.status.toUpperCase(), statusColor) + 16;
-  if (snap.pending > 0) pill(ctx, px, 52, `${snap.pending} APPROVAL${snap.pending === 1 ? "" : "S"} WAITING`, "#F04DFF");
+  if (snap.pending > 0) px += pill(ctx, px, 52, `${snap.pending} APPROVAL${snap.pending === 1 ? "" : "S"} WAITING`, "#F04DFF") + 16;
+  if (snap.services.length > 0) {
+    const upCount = snap.services.filter((sv) => sv.status === "UP").length;
+    const svcColor = upCount === snap.services.length ? "#34D399" : "#f87171";
+    pill(ctx, px, 52, `${upCount}/${snap.services.length} SERVICES UP`, svcColor);
+  }
 
   const time = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   const date = now.toLocaleDateString([], { weekday: "short", day: "2-digit", month: "short" });
@@ -161,7 +168,7 @@ export function paintWall(ctx: CanvasRenderingContext2D, snap: WallSnapshot, now
   ctx.fillStyle = "rgba(255,255,255,0.07)";
   ctx.fillRect(PAD, 108, W - PAD * 2, 2);
 
-  // ---- KPI row (y 126–246)
+  // ---- KPI row (y 122–218)
   const tiles: { label: string; value: string; color: string }[] = [
     { label: "NEEDS WORK", value: String(snap.counts.needs_work ?? 0), color: "#00E5FF" },
     { label: "IN REVIEW", value: String(snap.counts.needs_review ?? 0), color: "#9747FF" },
@@ -173,8 +180,8 @@ export function paintWall(ctx: CanvasRenderingContext2D, snap: WallSnapshot, now
   ];
   const gap = 16;
   const tw = (W - PAD * 2 - gap * (tiles.length - 1)) / tiles.length;
-  const ty = 126;
-  const th = 120;
+  const ty = 122;
+  const th = 96;
   tiles.forEach((t, i) => {
     const x = PAD + i * (tw + gap);
     roundRect(ctx, x, ty, tw, th, 14);
@@ -184,19 +191,53 @@ export function paintWall(ctx: CanvasRenderingContext2D, snap: WallSnapshot, now
     ctx.lineWidth = 1.5;
     ctx.stroke();
     ctx.fillStyle = t.color;
-    roundRect(ctx, x + 14, ty + 18, 5, th - 36, 3);
+    roundRect(ctx, x + 14, ty + 14, 5, th - 28, 3);
     ctx.fill();
     ctx.textAlign = "left";
     ctx.font = `700 20px ${FONT}`;
     ctx.fillStyle = "#8b98c4";
-    ctx.fillText(t.label, x + 34, ty + 32);
-    ctx.font = `800 ${t.value.length > 9 ? 36 : 50}px ${FONT}`;
+    ctx.fillText(t.label, x + 34, ty + 27);
+    ctx.font = `800 ${t.value.length > 9 ? 32 : 42}px ${FONT}`;
     ctx.fillStyle = "#f8fafc";
-    ctx.fillText(ellipsize(ctx, t.value, tw - 48), x + 34, ty + 80);
+    ctx.fillText(ellipsize(ctx, t.value, tw - 48), x + 34, ty + 67);
   });
 
-  // ---- lower band (y 266–484): live feed (left 60%) + team now (right 40%)
-  const by = 266;
+  // ---- services strip (y 230–274): live Uptime Kuma status, one pill per domain
+  const sy = 252;
+  ctx.textAlign = "left";
+  ctx.font = `700 20px ${FONT}`;
+  ctx.fillStyle = "#8b98c4";
+  ctx.fillText("SERVICES · UPTIME KUMA", PAD, sy);
+  if (snap.services.length === 0) {
+    ctx.font = `500 22px ${FONT}`;
+    ctx.fillStyle = "#4b5784";
+    ctx.fillText("NO DATA", PAD + 330, sy);
+  }
+  let sx = PAD + 330;
+  for (const sv of snap.services) {
+    const up = sv.status === "UP";
+    const color = up ? "#34D399" : sv.status === "DOWN" ? "#f87171" : "#FFB547";
+    const label = `${sv.label.toUpperCase()} ${sv.status}${up && sv.ping != null ? ` ${Math.round(sv.ping)}MS` : ""}`;
+    ctx.font = `700 22px ${FONT}`;
+    const w = ctx.measureText(label).width + 64;
+    if (sx + w > W - PAD) break;
+    roundRect(ctx, sx, sy - 22, w, 44, 22);
+    ctx.fillStyle = `${color}26`;
+    ctx.fill();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(sx + 24, sy, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#f8fafc";
+    ctx.fillText(label, sx + 42, sy);
+    sx += w + 14;
+  }
+
+  // ---- lower band (y 290–484): live feed (left 60%) + team now (right 40%)
+  const by = 290;
   const bh = H - by - 16;
   const feedW = Math.floor((W - PAD * 2) * 0.6) - 12;
   const teamX = PAD + feedW + 24;
@@ -209,14 +250,14 @@ export function paintWall(ctx: CanvasRenderingContext2D, snap: WallSnapshot, now
   ctx.font = `700 20px ${FONT}`;
   ctx.fillStyle = "#8b98c4";
   ctx.fillText("LIVE FEED", PAD + 24, by + 28);
-  const rows = snap.updates.slice(0, 4);
+  const rows = snap.updates.slice(0, 3);
   if (rows.length === 0) {
     ctx.font = `500 26px ${FONT}`;
     ctx.fillStyle = "#4b5784";
-    ctx.fillText("Waiting for the first task…", PAD + 24, by + 84);
+    ctx.fillText("Waiting for the first task…", PAD + 24, by + 76);
   }
   rows.forEach((u, i) => {
-    const y = by + 76 + i * 48;
+    const y = by + 70 + i * 42;
     const color = u.agent ? AGENT_META[u.agent].color : "#94a3b8";
     const name = u.agent ? AGENT_META[u.agent].name.split(" ")[0] : "Azzy";
     ctx.fillStyle = color;
@@ -280,6 +321,9 @@ export function tickerText(snap: WallSnapshot): string {
   parts.push(`${snap.pending} APPROVAL${snap.pending === 1 ? "" : "S"} PENDING`);
   parts.push(`${snap.counts.needs_human ?? 0} NEED A HUMAN`);
   parts.push(`${snap.tasksDone} DONE TODAY`);
+  for (const sv of snap.services) {
+    parts.push(`${sv.label.toUpperCase()} ${sv.status}${sv.status === "UP" && sv.ping != null ? ` ${Math.round(sv.ping)}MS` : ""}`);
+  }
   for (const u of snap.updates) {
     const name = u.agent ? AGENT_META[u.agent].name.split(" ")[0].toUpperCase() : "AZZY";
     parts.push(`${name}: ${u.text}`);

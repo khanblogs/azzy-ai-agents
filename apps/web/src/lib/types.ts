@@ -86,6 +86,15 @@ export interface OfficeState {
   note: string;
 }
 
+/** One monitored service from Uptime Kuma's status page (via `GET /state`). */
+export interface ServiceStatus {
+  name: string;
+  label: string;
+  status: "UP" | "DOWN" | "PENDING" | "MAINTENANCE" | "UNKNOWN";
+  ping: number | null;
+  uptime24: number | null;
+}
+
 /** `GET /state` (CONTRACT.md + v2 additions). Key names mirror `azzy/api/state.py::state_snapshot` exactly. */
 export interface StateSnapshot {
   office: OfficeState;
@@ -98,6 +107,7 @@ export interface StateSnapshot {
   costs: { today_usd: number; per_agent: Record<string, number>; budget_usd: number };
   updates: UpdateItem[];
   uptime_seconds: number;
+  services: ServiceStatus[];
   demo: boolean;
   deployments: Deployment[];
   /** AWS accounts — the API key is `accounts` (not `aws_accounts`). */

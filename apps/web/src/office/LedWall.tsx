@@ -53,8 +53,14 @@ export function LedWall() {
     };
     paint();
     const id = setInterval(paint, 1000);
+    // Kuma checks every 60s; refresh the shared state every 30s while the
+    // wall is on screen so the services strip never goes stale.
+    const id2 = setInterval(() => {
+      void useAzzy.getState().hydrate();
+    }, 30000);
     return () => {
       clearInterval(id);
+      clearInterval(id2);
       wallTexture.dispose();
       tickerTexture.dispose();
     };
