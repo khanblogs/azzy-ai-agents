@@ -20,6 +20,8 @@ export const TABLE_STOOL_RADIUS = 1.8;
 export const TABLE_ANGLES: Record<AgentId, number> = { jimmy: 18, emir: 90, cyber: 162, sara: 234, marwah: 306 };
 
 export const BAR_CENTER: Vec3 = [12.5, 0, 4];
+/** Server-room corner: racks against the back wall, left side. */
+export const SERVER_CENTER: Vec3 = [-12.4, 0, -8.15];
 export const LOUNGE_CENTER: Vec3 = [-12.5, 0, 4];
 export const WALL_CENTER: Vec3 = [0, 3.7, -3.8];
 export const WALL_HALF_WIDTH = 10;

@@ -16,6 +16,7 @@ import { HoloScreen } from "./HoloScreen";
 import { Floor, FuelBar, LedFloorLines, Lounge, Plants, Walls } from "./Interior";
 import { CAMERA_DEFAULT, ROOM } from "./layout";
 import { LedWall } from "./LedWall";
+import { ServerRoom } from "./SetDressing";
 import { OrchestrationTable } from "./OrchestrationTable";
 import { NameTag, SpeechBubble } from "./Overlays";
 
@@ -194,6 +195,8 @@ export function OfficeScene({ liveEdges }: { liveEdges: CollaborationEdge[] }) {
   const lowPower = useLowPower();
   const hidden = usePageHidden();
   const office = useAzzy((s) => s.office.status);
+  const envs = useAzzy((s) => s.environments);
+  const envAlert = envs.some((e) => e.health === "down");
   const mode = useAzzy((s) => s.cameraMode);
   // Adaptive quality: PerformanceMonitor drops the scene to the low tier when
   // the frame rate sags (and restores it when there is headroom), so the office
@@ -247,6 +250,7 @@ export function OfficeScene({ liveEdges }: { liveEdges: CollaborationEdge[] }) {
       <Plants />
       <Lounge />
       <FuelBar />
+      <ServerRoom alert={envAlert} />
       <OrchestrationTable active={office === "meeting" || mode === "collaboration"} detail={!low} />
       <LedWall />
       <Agents />

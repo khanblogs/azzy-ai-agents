@@ -12,7 +12,7 @@ import { StatusDot, StatusPill } from "@/components/StatusDot";
 import { api, ApiError } from "@/lib/api";
 import { usd } from "@/lib/format";
 import { deriveStatus, HEALTH_COLORS, OFFICE_STATUS_COLORS, PHASE_LABELS, STATUS_COLORS, STATUS_LABELS } from "@/lib/status";
-import type { CollaborationEdge } from "@/lib/types";
+import type { CollaborationEdge, SystemMetrics } from "@/lib/types";
 import { AGENT_IDS, can, EMPTY_LOGS, pendingApprovalFor, useAzzy, usePendingApprovals, type CameraMode } from "@/store/useAzzy";
 import { detectWebGL, OfficeErrorBoundary } from "./OfficeErrorBoundary";
 
@@ -260,6 +260,137 @@ export function OfficeFallback({ reason }: { reason: string }) {
   );
 }
 
+
+/** Orchestrator diagram (concept mock's back-screen graph, as a live panel):
+ * Azzy in the centre, one node per agent, edges tinted by each agent's live status. */
+function OrchestratorPanel() {
+  const agents = useAzzy((s) => s.agents);
+  const bubbles = useAzzy((s) => s.bubbles);
+  const approvals = useAzzy((s) => s.approvals);
+  const office = useAzzy((s) => s.office);
+  const size = 220;
+  const c = size / 2;
+  const r = 76;
+  const nodes = AGENT_IDS.map((id, i) => {
+    const a = (i * 72 - 90) * (Math.PI / 180);
+    const agent = agents[id];
+    const status = deriveStatus({ phase: agent.phase, arrived: true, hasBubble: Boolean(bubbles[id]), hasPendingApproval: Boolean(pendingApprovalFor(approvals, id)) });
+    return { id, agent, status, x: c + r * Math.cos(a), y: c + r * Math.sin(a) };
+  });
+  const officeColor = OFFICE_STATUS_COLORS[office.status];
+  return (
+    <div>
+      <svg viewBox={`0 0 ${size} ${size}`} className="mx-auto w-full max-w-[240px]" role="img" aria-label="Orchestrator diagram: Azzy connected to all five agents">
+        {nodes.map((n) => (
+          <line key={`e-${n.id}`} x1={c} y1={c} x2={n.x} y2={n.y} stroke={STATUS_COLORS[n.status]} strokeWidth={1.6} opacity={n.status === "idle" ? 0.25 : 0.75} />
+        ))}
+        <circle cx={c} cy={c} r={27} fill="#0B1025" stroke={officeColor} strokeWidth={2} />
+        <text x={c} y={c - 2} textAnchor="middle" fontSize={12} fontWeight={800} fill="#f8fafc">
+          AZZY
+        </text>
+        <text x={c} y={c + 12} textAnchor="middle" fontSize={7.5} fill="#94a3b8">
+          ORCHESTRATOR
+        </text>
+        {nodes.map((n) => (
+          <g key={n.id}>
+            <circle cx={n.x} cy={n.y} r={21} fill="none" stroke={STATUS_COLORS[n.status]} strokeWidth={1.4} opacity={0.8} />
+            <circle cx={n.x} cy={n.y} r={16} fill={n.agent.color} />
+            <text x={n.x} y={n.y + 4} textAnchor="middle" fontSize={11} fontWeight={800} fill="#050816">
+              {n.agent.name[0]}
+            </text>
+            <text x={n.x} y={n.y + 33} textAnchor="middle" fontSize={8.5} fill="#cbd5e1">
+              {n.agent.name}
+            </text>
+          </g>
+        ))}
+      </svg>
+      <p className="mt-1 text-center text-[11px] text-slate-400">
+        Office{" "}
+        <span className="font-semibold capitalize" style={{ color: officeColor }}>
+          {office.status}
+        </span>{" "}
+        · edge colour = each agent&apos;s live status
+      </p>
+    </div>
+  );
+}
+
+/** System health (concept mock's right-rail panel, real data): platform metrics
+ * polled from /system/metrics + monitored services from Uptime Kuma via /state. */
+function SystemHealthPanel() {
+  const services = useAzzy((s) => s.services);
+  const [metrics, setMetrics] = useState<SystemMetrics | null>(null);
+  const [metricsError, setMetricsError] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    const load = () =>
+      api.system
+        .metrics()
+        .then((m) => {
+          if (!alive) return;
+          setMetrics(m);
+          setMetricsError(false);
+        })
+        .catch(() => alive && setMetricsError(true));
+    load();
+    const id = setInterval(load, 30_000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, []);
+  const up = services.filter((s) => s.status === "UP").length;
+  const infra: { label: string; ok: boolean | null; note?: string }[] = [
+    { label: "API", ok: metrics ? true : metricsError ? false : null, note: metrics ? `v${metrics.version}` : undefined },
+    { label: "Database", ok: metrics ? metrics.db_ok : null },
+    { label: "Redis", ok: metrics ? metrics.redis_ok : null },
+    { label: "Worker", ok: metrics ? metrics.worker_ok : null, note: metrics ? `queue ${metrics.queue_depth}` : undefined },
+  ];
+  const svcColor = (st: string) => (st === "UP" ? "#34D399" : st === "DOWN" ? "#f87171" : "#FFB547");
+  return (
+    <div className="text-xs">
+      <ul className="space-y-1.5">
+        {infra.map((r) => (
+          <li key={r.label} className="flex items-center justify-between gap-2">
+            <span className="text-slate-300">{r.label}</span>
+            <span className="flex items-center gap-1.5">
+              {r.note ? <span className="font-mono text-[10px] text-slate-500">{r.note}</span> : null}
+              <span className="font-semibold" style={{ color: r.ok === null ? "#64748b" : r.ok ? "#34D399" : "#f87171" }}>
+                {r.ok === null ? "…" : r.ok ? "Healthy" : "Down"}
+              </span>
+            </span>
+          </li>
+        ))}
+      </ul>
+      <div className="mt-3 border-t border-line pt-2">
+        <div className="mb-1.5 flex items-center justify-between">
+          <span className="font-medium text-slate-200">Monitored services</span>
+          <span className="font-semibold" style={{ color: services.length > 0 && up === services.length ? "#34D399" : "#f87171" }}>
+            {services.length ? `${up}/${services.length} UP` : "—"}
+          </span>
+        </div>
+        <ul className="space-y-1.5">
+          {services.map((s) => (
+            <li key={s.name} className="flex items-center justify-between gap-2">
+              <span className="flex min-w-0 items-center gap-1.5">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: svcColor(s.status), boxShadow: `0 0 6px ${svcColor(s.status)}` }} />
+                <span className="truncate text-slate-300">{s.label}</span>
+              </span>
+              <span className="shrink-0 font-mono text-[10px] text-slate-500">
+                {s.status}
+                {s.ping !== null ? ` · ${Math.round(s.ping)} ms` : ""}
+                {s.uptime24 !== null ? ` · ${s.uptime24}%` : ""}
+              </span>
+            </li>
+          ))}
+          {services.length === 0 ? <li className="text-slate-500">Uptime Kuma data not in state yet.</li> : null}
+        </ul>
+        <p className="mt-2 text-[10px] text-slate-500">Live from Uptime Kuma (60s checks) — same data as the LED wall strip.</p>
+      </div>
+    </div>
+  );
+}
+
 /** Bottom KPI strip over the 3D view — the concept mock's metric bar, fed with live store data. */
 function KpiStrip() {
   const tasks = useAzzy((s) => s.tasks);
@@ -341,6 +472,7 @@ export function OfficeView() {
         {!hydrated ? <div className="pointer-events-none absolute bottom-3 left-3 z-10 rounded-full bg-black/60 px-3 py-1 text-[11px] text-slate-300">Syncing state…</div> : null}
       </div>
 
+      <div className="flex flex-col gap-3 lg:w-80 lg:shrink-0">
       <Sheet
         title={
           <span className="flex items-center gap-2">
@@ -348,7 +480,7 @@ export function OfficeView() {
             {pending.length > 0 ? <StatusPill color="#F04DFF" label={`${pending.length} approval${pending.length === 1 ? "" : "s"} pending`} /> : null}
           </span>
         }
-        className="lg:w-80 lg:shrink-0"
+        className="w-full"
         defaultOpen
       >
         <Roster />
@@ -359,6 +491,13 @@ export function OfficeView() {
           </Link>
         ) : null}
       </Sheet>
+      <Sheet title="Orchestrator" defaultOpen>
+        <OrchestratorPanel />
+      </Sheet>
+      <Sheet title="System health" defaultOpen>
+        <SystemHealthPanel />
+      </Sheet>
+      </div>
     </div>
   );
 }
