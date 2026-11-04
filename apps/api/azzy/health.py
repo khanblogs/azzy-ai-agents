@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import logging
+import os
 import random
 import time
 from typing import Any
@@ -33,6 +34,15 @@ async def probe_real(env: dict[str, Any], settings: Settings) -> tuple[str, int 
 
             def work() -> None:
                 boto3.client("sts", region_name=env.get("region") or settings.AWS_REGION).get_caller_identity()
+
+            await asyncio.wait_for(asyncio.to_thread(work), timeout=8)
+        elif method == "local_emulator":
+            import boto3  # noqa: PLC0415
+
+            def work() -> None:
+                boto3.client("sts", endpoint_url=os.environ.get("FLOCI_URL", "http://floci:4566"),
+                             region_name=env.get("region") or settings.AWS_REGION,
+                             aws_access_key_id="test", aws_secret_access_key="test").get_caller_identity()
 
             await asyncio.wait_for(asyncio.to_thread(work), timeout=8)
         else:

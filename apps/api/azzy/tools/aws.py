@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -30,6 +31,10 @@ def _session_for(ctx: ToolContext) -> Any:
     env = ctx.env or {}
     region = env.get("region") or ctx.settings.AWS_REGION
     method = env.get("method")
+    if method == "local_emulator":
+        # Local AWS emulator (Floci): dummy credentials only; _client()
+        # points every service client at the emulator endpoint.
+        return boto3.Session(aws_access_key_id="test", aws_secret_access_key="test", region_name=region)
     base = boto3.Session(region_name=region)
     if method == "assume_role":
         sts = base.client("sts")
@@ -54,6 +59,13 @@ def _session_for(ctx: ToolContext) -> Any:
     return base
 
 
+def _client(ctx: ToolContext, session: Any, service: str, **kwargs: Any) -> Any:
+    """session.client() that honours the local-emulator endpoint, if any."""
+    if (ctx.env or {}).get("method") == "local_emulator":
+        kwargs.setdefault("endpoint_url", os.environ.get("FLOCI_URL", "http://floci:4566"))
+    return session.client(service, **kwargs)
+
+
 def _cluster(args: dict[str, Any], ctx: ToolContext) -> str:
     return str(args.get("cluster") or (ctx.env or {}).get("cluster") or "app")
 
@@ -68,7 +80,7 @@ async def aws_describe(ctx: ToolContext, args: dict[str, Any]) -> str:
     def work() -> str:
         session = _session_for(ctx)
         if service == "ecs":
-            ecs = session.client("ecs")
+            ecs = _client(ctx, session, "ecs")
             resp = ecs.describe_services(cluster=_cluster(args, ctx), services=[_service(args)])
             out = []
             for svc in resp.get("services", []):
@@ -79,16 +91,16 @@ async def aws_describe(ctx: ToolContext, args: dict[str, Any]) -> str:
                 })
             return json.dumps(out, indent=2, default=str)
         if service == "iam":
-            iam = session.client("iam")
+            iam = _client(ctx, session, "iam")
             roles = iam.list_roles(MaxItems=50)["Roles"]
             summary = iam.get_account_summary()["SummaryMap"]
             return json.dumps({"roles": [{"name": r["RoleName"], "created": r["CreateDate"]} for r in roles], "summary": {k: summary[k] for k in ("Users", "Roles", "MFADevices", "AccountMFAEnabled") if k in summary}}, indent=2, default=str)
         if service in {"rds", "db"}:
-            rds = session.client("rds")
+            rds = _client(ctx, session, "rds")
             dbs = rds.describe_db_instances()["DBInstances"]
             return json.dumps([{"id": d["DBInstanceIdentifier"], "engine": f"{d['Engine']} {d['EngineVersion']}", "class": d["DBInstanceClass"], "status": d["DBInstanceStatus"]} for d in dbs], indent=2, default=str)
         if service == "ec2":
-            ec2 = session.client("ec2")
+            ec2 = _client(ctx, session, "ec2")
             reservations = ec2.describe_instances()["Reservations"]
             rows = [{"id": i["InstanceId"], "type": i["InstanceType"], "state": i["State"]["Name"], "name": next((t["Value"] for t in i.get("Tags", []) if t["Key"] == "Name"), None)} for r in reservations for i in r["Instances"]]
             return json.dumps(rows, indent=2, default=str)
@@ -100,7 +112,7 @@ async def aws_describe(ctx: ToolContext, args: dict[str, Any]) -> str:
 async def _ecs_update(ctx: ToolContext, args: dict[str, Any], *, rollback: bool) -> str:
     def work() -> str:
         session = _session_for(ctx)
-        ecs = session.client("ecs")
+        ecs = _client(ctx, session, "ecs")
         cluster, service = _cluster(args, ctx), _service(args)
         current = ecs.describe_services(cluster=cluster, services=[service])["services"][0]
         family = current["taskDefinition"].split("/")[-1].rsplit(":", 1)[0]
@@ -147,7 +159,7 @@ async def aws_cost(ctx: ToolContext, args: dict[str, Any]) -> str:
 
     def work() -> str:
         session = _session_for(ctx)
-        ce = session.client("ce", region_name="us-east-1")  # Cost Explorer is global
+        ce = _client(ctx, session, "ce", region_name="us-east-1")  # Cost Explorer is global
         end = datetime.now(UTC).date()
         start = end - timedelta(days=days)
         resp = ce.get_cost_and_usage(
@@ -171,7 +183,7 @@ async def cloudwatch_logs(ctx: ToolContext, args: dict[str, Any]) -> str:
     limit = max(1, min(int(args.get("limit") or 200), 1000))
 
     def work() -> str:
-        logs = _session_for(ctx).client("logs")
+        logs = _client(ctx, _session_for(ctx), "logs")
         start_ms = int((datetime.now(UTC) - timedelta(minutes=minutes)).timestamp() * 1000)
         kwargs: dict[str, Any] = {"logGroupName": group, "startTime": start_ms, "limit": limit, "interleaved": True}
         if pattern:

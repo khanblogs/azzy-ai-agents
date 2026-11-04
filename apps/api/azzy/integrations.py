@@ -21,7 +21,7 @@ _CATALOG: tuple[tuple[str, str, str], ...] = (
     ("playwright", "Playwright", "testing"), ("obscura", "Obscura", "web"),
     ("crawl4ai", "Crawl4AI", "web"), ("healthchecks", "Healthchecks", "monitoring"),
     ("uptime-kuma", "Uptime Kuma", "monitoring"), ("umami", "Umami Analytics", "analytics"),
-    ("mem0", "Mem0 Memory", "memory"),
+    ("mem0", "Mem0 Memory", "memory"), ("floci", "Floci (Local AWS)", "testing"),
 )
 
 
@@ -54,6 +54,8 @@ def _configured(integration_id: str, settings: Settings) -> tuple[bool, str]:
             return bool(shutil.which("obscura")), "obscura binary (web.fetch / web.scrape / web.screenshot)"
         case "crawl4ai":
             return bool(env.get("CRAWL4AI_URL")), "CRAWL4AI_URL (web.extract engine)"
+        case "floci":
+            return bool(env.get("FLOCI_URL")), "FLOCI_URL (local AWS emulator sandbox for agent AWS tools)"
         case "healthchecks":
             return bool(env.get("HEALTHCHECKS_URL")), "HEALTHCHECKS_URL (cron/routine watchdog)"
         case "uptime-kuma":
@@ -144,6 +146,16 @@ async def test_integration(integration_id: str, settings: Settings) -> dict[str,
                 cur.execute("SELECT count(*) FROM azzy_memories")
                 count = cur.fetchone()[0]
             return {"ok": True, "demo": False, "detail": f"mem0 pgvector reachable ({count} memories)"}
+        except Exception as exc:  # noqa: BLE001
+            return {"ok": False, "demo": False, "detail": f"{type(exc).__name__}"}
+    if integration_id == "floci":
+        try:
+            import boto3  # noqa: PLC0415
+
+            base = os.environ.get("FLOCI_URL", "http://floci:4566")
+            ident = boto3.client("sts", endpoint_url=base, region_name="ap-south-1",
+                                 aws_access_key_id="test", aws_secret_access_key="test").get_caller_identity()
+            return {"ok": True, "demo": False, "detail": f"Floci STS OK (account {ident.get('Account')})"}
         except Exception as exc:  # noqa: BLE001
             return {"ok": False, "demo": False, "detail": f"{type(exc).__name__}"}
     if integration_id == "bedrock":
