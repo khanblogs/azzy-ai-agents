@@ -23,9 +23,10 @@ export function NameTag({ id, status, position }: { id: AgentId; status: VisualS
           <span className="block font-semibold" style={{ color: meta.color }}>
             {meta.name}
           </span>
-          {status !== "working" && status !== "idle" ? (
-            <span className="block text-[9px] uppercase tracking-wider text-slate-400">{STATUS_LABELS[status]}</span>
-          ) : null}
+          <span className="flex items-center gap-1 text-[9px] uppercase tracking-wider">
+            <span className="text-slate-400">{meta.short}</span>
+            <span style={{ color }}>· {STATUS_LABELS[status]}</span>
+          </span>
         </span>
       </div>
     </Html>

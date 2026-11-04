@@ -45,7 +45,7 @@ export interface CostsState {
   recent: CostTick[];
 }
 
-export type CameraMode = "overview" | "focus" | "collaboration" | "execution" | "monitoring";
+export type CameraMode = "overview" | "focus" | "collaboration" | "execution" | "monitoring" | "iso";
 
 const TOOL_LOG_RING = 200;
 const UPDATES_MAX = 20;

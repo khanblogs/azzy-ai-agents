@@ -82,6 +82,8 @@ export function spotSeated(spot: Spot): boolean {
 export const CAMERA_DEFAULT = { position: [0, 9, 19.5] as Vec3, target: [0, 1.6, -1.5] as Vec3 };
 export const CAMERA_WALL = { position: [0, 4.4, 9] as Vec3, target: [0, 3.7, -3.8] as Vec3 };
 export const CAMERA_TABLE = { position: [0, 6.5, 14.5] as Vec3, target: [0, 1.2, 7] as Vec3 };
+/** Isometric-style diagonal view, like the Azzy Labs concept mock. */
+export const CAMERA_ISO = { position: [16.5, 13.5, 16.5] as Vec3, target: [0, 1.0, 1.5] as Vec3 };
 
 export const ROOM = { halfWidth: 16, depthBack: -9, depthFront: 14, height: 6.8 };
 export const AGENT_ORDER = ORDER;

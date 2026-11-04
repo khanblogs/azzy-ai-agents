@@ -6,7 +6,7 @@ import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import type { AgentId } from "@azzy/events";
 import { useAzzy } from "@/store/useAzzy";
-import { CAMERA_DEFAULT, CAMERA_TABLE, CAMERA_WALL } from "./layout";
+import { CAMERA_DEFAULT, CAMERA_ISO, CAMERA_TABLE, CAMERA_WALL } from "./layout";
 import { agentPositions } from "./positions";
 
 const IDLE_MS = 8000;
@@ -88,6 +88,9 @@ export function CameraRig() {
         break;
       case "monitoring":
         startTween(new THREE.Vector3(...CAMERA_WALL.position), new THREE.Vector3(...CAMERA_WALL.target));
+        break;
+      case "iso":
+        startTween(new THREE.Vector3(...CAMERA_ISO.position), new THREE.Vector3(...CAMERA_ISO.target));
         break;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

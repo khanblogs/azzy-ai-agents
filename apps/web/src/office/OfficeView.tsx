@@ -10,6 +10,7 @@ import { IconBolt, IconCamera, IconRefresh, IconSpinner } from "@/components/Ico
 import { Sheet } from "@/components/Sheet";
 import { StatusDot, StatusPill } from "@/components/StatusDot";
 import { api, ApiError } from "@/lib/api";
+import { usd } from "@/lib/format";
 import { deriveStatus, HEALTH_COLORS, OFFICE_STATUS_COLORS, PHASE_LABELS, STATUS_COLORS, STATUS_LABELS } from "@/lib/status";
 import type { CollaborationEdge } from "@/lib/types";
 import { AGENT_IDS, can, EMPTY_LOGS, pendingApprovalFor, useAzzy, usePendingApprovals, type CameraMode } from "@/store/useAzzy";
@@ -39,6 +40,7 @@ const LEGEND: { key: keyof typeof STATUS_COLORS; label: string }[] = [
 
 const MODES: { key: CameraMode; label: string; hint: string }[] = [
   { key: "overview", label: "Overview", hint: "Whole office" },
+  { key: "iso", label: "Iso", hint: "Isometric view, like the concept mock" },
   { key: "focus", label: "Focus", hint: "Follow the selected agent" },
   { key: "collaboration", label: "Collaboration", hint: "Arcs for agent-to-agent messages" },
   { key: "execution", label: "Execution", hint: "Spotlight agents on active tasks" },
@@ -258,6 +260,38 @@ export function OfficeFallback({ reason }: { reason: string }) {
   );
 }
 
+/** Bottom KPI strip over the 3D view — the concept mock's metric bar, fed with live store data. */
+function KpiStrip() {
+  const tasks = useAzzy((s) => s.tasks);
+  const agents = useAzzy((s) => s.agents);
+  const costs = useAzzy((s) => s.costs);
+  const pending = usePendingApprovals();
+  const active = tasks.filter((t) => !["done", "failed", "cancelled"].includes(t.state)).length;
+  const working = AGENT_IDS.filter((id) => !["idle", "away"].includes(agents[id].phase)).length;
+  const done = AGENT_IDS.reduce((n, id) => n + agents[id].tasks_done, 0);
+  const stats: { label: string; value: string; color: string }[] = [
+    { label: "Active tasks", value: String(active), color: "#00E5FF" },
+    { label: "Agents working", value: `${working}/5`, color: "#34D399" },
+    { label: "Pending approval", value: String(pending.length), color: "#F04DFF" },
+    { label: "Tasks done", value: String(done), color: "#22c55e" },
+    { label: "Spend today", value: `${usd(costs.today_usd)} / ${usd(costs.budget_usd, 0)}`, color: "#FFB547" },
+  ];
+  return (
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 hidden p-3 md:block" aria-label="Office key metrics">
+      <div className="glass flex items-stretch justify-between gap-2 rounded-2xl px-4 py-2">
+        {stats.map((s) => (
+          <div key={s.label} className="min-w-0 text-center">
+            <div className="truncate text-[10px] font-medium uppercase tracking-wider text-slate-400">{s.label}</div>
+            <div className="text-base font-bold leading-tight" style={{ color: s.color }}>
+              {s.value}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function OfficeView() {
   const [webgl, setWebgl] = useState<boolean | null>(null);
   const hydrated = useAzzy((s) => s.hydrated);
@@ -303,6 +337,7 @@ export function OfficeView() {
           </div>
         )}
         <Hud />
+        <KpiStrip />
         {!hydrated ? <div className="pointer-events-none absolute bottom-3 left-3 z-10 rounded-full bg-black/60 px-3 py-1 text-[11px] text-slate-300">Syncing state…</div> : null}
       </div>
 

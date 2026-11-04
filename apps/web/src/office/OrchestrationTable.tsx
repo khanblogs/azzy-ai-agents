@@ -10,8 +10,35 @@ import { TABLE_ANGLES, TABLE_CENTER, TABLE_RADIUS, TABLE_STOOL_RADIUS } from "./
 
 const DEG = Math.PI / 180;
 
+/** Procedural holographic mini-city on the table disc — the concept poster's centrepiece.
+ * Sixteen small emissive blocks on one shared geometry pattern; rotates slowly against the logo. */
+function HoloCity({ glow }: { glow: string }) {
+  const ref = useRef<THREE.Group>(null);
+  useFrame((_, dt) => {
+    if (ref.current) ref.current.rotation.y -= dt * 0.18;
+  });
+  const buildings = useMemo(() => {
+    const pts: [number, number][] = [
+      [0.0, 0.0], [0.42, 0.18], [-0.4, 0.3], [0.25, -0.42], [-0.28, -0.38], [0.62, -0.15],
+      [-0.65, -0.05], [0.1, 0.62], [-0.15, 0.58], [0.55, 0.45], [-0.55, 0.5], [0.78, 0.28],
+      [-0.8, -0.3], [0.35, -0.68], [-0.05, -0.72], [0.05, 0.25],
+    ];
+    return pts.map(([x, z], i) => ({ x, z, h: 0.14 + ((i * 37) % 10) * 0.035, w: 0.13 + ((i * 13) % 3) * 0.03 }));
+  }, []);
+  return (
+    <group ref={ref} position={[0, 0.79, 0]}>
+      {buildings.map((b, i) => (
+        <mesh key={i} position={[b.x, b.h / 2, b.z]}>
+          <boxGeometry args={[b.w, b.h, b.w]} />
+          <meshStandardMaterial color="#082f49" emissive={glow} emissiveIntensity={0.55} transparent opacity={0.8} roughness={0.3} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
 /** Central holographic orchestration table — the orchestrator's presence in the office. */
-export function OrchestrationTable({ active }: { active: boolean }) {
+export function OrchestrationTable({ active, detail = true }: { active: boolean; detail?: boolean }) {
   const [cx, , cz] = TABLE_CENTER;
   const holo = useRef<THREE.Group>(null);
   const ringA = useRef<THREE.Mesh>(null);
@@ -65,6 +92,8 @@ export function OrchestrationTable({ active }: { active: boolean }) {
         <ringGeometry args={[TABLE_RADIUS - 0.12, TABLE_RADIUS - 0.06, 64]} />
         <meshBasicMaterial color={glow} toneMapped={false} side={THREE.DoubleSide} />
       </mesh>
+      {/* holographic city on the table disc (concept-poster centrepiece) */}
+      {detail ? <HoloCity glow={glow} /> : null}
       {/* holographic "A" + orbiting rings */}
       <group ref={holo} position={[0, 1.75, 0]}>
         {[0, Math.PI / 2].map((ry) => (

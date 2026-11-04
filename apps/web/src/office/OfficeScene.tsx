@@ -247,7 +247,7 @@ export function OfficeScene({ liveEdges }: { liveEdges: CollaborationEdge[] }) {
       <Plants />
       <Lounge />
       <FuelBar />
-      <OrchestrationTable active={office === "meeting" || mode === "collaboration"} />
+      <OrchestrationTable active={office === "meeting" || mode === "collaboration"} detail={!low} />
       <LedWall />
       <Agents />
       {mode === "collaboration" ? <CollabArcs liveEdges={liveEdges} /> : null}
