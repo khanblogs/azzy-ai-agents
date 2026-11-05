@@ -28,7 +28,7 @@ services:
       - "443:443"
     volumes:
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - ./nginx/certs:/etc/nginx/certs:ro
+      - /home/ubuntu/azzy-certs:/etc/nginx/certs:ro
       - ./nginx/www:/var/www/certbot:ro
     depends_on:
       web:
