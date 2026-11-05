@@ -108,9 +108,9 @@ tools:
   - uptime.status
   - web.screenshot
 budgets:
-  daily_usd: 5.00
+  daily_usd: 2.10
   max_tokens_per_task: 400000
-  model: openai/freellmapi/gpt-oss-120b
+  model: bedrock/in.anthropic.claude-sonnet-5
 routines:
   - id: friday_ops_review
     cron: "0 16 * * 5"

@@ -847,6 +847,10 @@ class LiteLLMGateway:
                 if tool_specs:
                     kwargs["tools"] = tool_specs
                     kwargs["tool_choice"] = "auto"
+                if candidate.startswith("bedrock/") and any(
+                    k in candidate for k in ("claude-sonnet-5", "claude-opus-5", "claude-haiku-5", "claude-fable")
+                ):  # NEW_GEN_BEDROCK: these models reject `temperature` (deprecated)
+                    kwargs.pop("temperature", None)
                 if candidate.startswith("bedrock/"):
                     kwargs["aws_region_name"] = self._region
                 response = await litellm.acompletion(**kwargs)

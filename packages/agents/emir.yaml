@@ -80,9 +80,9 @@ tools:
   - memory.write
   - web.fetch
 budgets:
-  daily_usd: 8.00
+  daily_usd: 3.00
   max_tokens_per_task: 400000
-  model: openai/freellmapi/gpt-oss-120b
+  model: bedrock/in.anthropic.claude-sonnet-5
 routines: []
 skills:
   - code_review
